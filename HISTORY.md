@@ -85,3 +85,51 @@
 - BOUNDARY `May depend on` trued up: katgpt-core's `hint_regret` feature
   lands WITH its consumer (not yet wired); only `decision_wire` is enabled.
 - Next: P3 — the vessel format crate (read/verify, class header, rotation).
+
+## 2026-09-25 — P3 LANDED (the vessel format crate)
+
+- **`crates/reflexer-vessel`** (public, MIT; deps blake3 + ed25519-dalek
+  only — no new dep classes): format v1 = fixed 68-byte header (magic ·
+  format version · flags · key-id · artifact version · parent commitment ·
+  payload len) + 64-byte ed25519-STRICT signature over `header ‖ payload`
+  + payload. Manual LE parse, zero serde. `commitment = blake3(header ‖
+  payload)` — the lineage chain and the signature cover the same bytes.
+  The crate is PAYLOAD-AGNOSTIC by design: bytes in, verified bytes out;
+  `Genome::from_line` binding lives in the engine (`from_vessel_payload`)
+  — the only bytes→genome seam.
+- **Two-class law**: `encode_public` is the ONLY public writer; HOSTED-ONLY
+  has no writer path outside `pub(crate)` hostile-forgery unit tests; the
+  reader refuses it fail-closed AND only after authenticity (a forged file
+  cannot spoof the hosted-only refusal message).
+- **Rotation**: key-id in the header, compiled-in pin table (`DEFAULT_PINS`
+  EMPTY until the first artifact ships — with nothing minted, every
+  unverified-key vessel fails closed, the correct posture), revocation,
+  and the `--vessel-pubkey` operator wildcard pin (the SEAL
+  `SEAL_VESSEL_PUBKEY` precedent).
+- **Monotonic apply**: `check_monotonic` refuses `OlderThanCurrent` and
+  `VersionFork`; the bin's `--vessel-force-downgrade` is the operator
+  path and LOGS (tested both arms).
+- **Hardening** (the security-posture section, added `50409ec` after the
+  pre-T1 review): single-read bounded `open` (`take(cap+1)` — no
+  stat-then-read window), verify-before-parse with the 1 MiB payload cap,
+  `verify_strict` everywhere, constructive whole-engine apply (no
+  partially-swapped state observable), unknown-anything fails closed.
+  cargo-fuzz DEFERRED to the first public-artifact ship (the plan's own
+  trigger); the always-on deterministic 2000-mutation sweep +
+  every-truncation arm gate the parser meanwhile.
+- **Bin**: `--vessel` / `--vessel-pubkey[=hex]` / `--vessel-force-downgrade`
+  / `--vessel-print` (inspection without applying — structure always, sig
+  verdict when a pin resolves). Every vessel failure is a LOUD boot
+  failure (exit 1); there is no silent fallback to the compiled champion.
+- **Gates** ([Bench 002](.benchmarks/002_vessel_format_gates.md)): 47/47
+  green on m3 (aarch64) AND the 4090 (x86_64) — same eight result lines;
+  G1 vessel-apply replay in-process AND through the wire at hold/no-hold;
+  the full fail-closed battery (tamper classes by region, truncations,
+  unknown/revoked keys, hosted-only, fork/downgrade boot refusals);
+  clippy `--workspace --all-targets` 0 findings.
+- The replay/downgrade gap the pre-T1 review found (an old VALIDLY-signed
+  vessel was openable by the filed plan) is CLOSED by the monotonic gate
+  and pinned by tests on both arches.
+- Next: P4/P5 — hosted serving + deployment, both in private homes
+  (riir-dapps / riir-deployer); this repo's part ends at the wire and the
+  format.

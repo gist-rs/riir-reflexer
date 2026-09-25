@@ -45,6 +45,7 @@ repo; file there.
 |---|---|
 | `katgpt-core` | non-optional (`decision_wire` enabled — the wire; `hint_regret` lands WITH its consumer, not yet wired; both opt-in features on katgpt-core's side) |
 | `katgpt-tetris` (the katgpt-rs Issue-893 substrate crate) | landed 2026-09-25, katgpt-rs `243c38a1b` — the board sim + lookahead + rulebook evaluator + reference genome; wired into this repo's engine bin at P2 |
+| `reflexer-vessel` (in-workspace member, P3) | the format crate — crates.io deps only (blake3, ed25519-dalek; both already root deps — no new dep classes), zero substrate coupling: payload-agnostic by design |
 
 **Zero riir-\* dependencies — the leaf law.** `Visibility: public` above is
 machine-read by the workspace boundary guard: any path dep on a workspace

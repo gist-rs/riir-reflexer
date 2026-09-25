@@ -110,6 +110,50 @@ The signing key is the per-machine key at `$REFLEXER_SUBMISSION_KEY` or
 billing code, no tokenomics — the private improvement loop
 replay-verifies rows against its own engine before crediting anything.
 
+## Vessels — decision artifacts (P3, `crates/reflexer-vessel`)
+
+A vessel is how a DIFFERENT genome reaches the bin without a rebuild:
+one signed file, verified and applied whole at boot.
+
+```sh
+reflexer --vessel champion.vessel --vessel-pubkey <64-hex-verifying-key>
+reflexer --vessel-print champion.vessel          # inspect: class/version/lineage/sig verdict
+reflexer --vessel ... --vessel-force-downgrade    # operator override of the monotonic gate (logs)
+```
+
+- **Format v1** — 68-byte fixed header (magic · format version · flags ·
+  key-id · artifact version · parent commitment · payload len) + a 64-byte
+  ed25519-STRICT signature over `header ‖ payload` + the payload. The
+  payload is `Genome::to_line` — the substrate's own whole-snapshot genome
+  line, **never a weighted blend** (blends do not preserve move rankings).
+  `commitment = blake3(header ‖ payload)` — the lineage chain and the
+  signature cover the same bytes.
+- **Two classes** — PUBLIC-RELEASE (runs anywhere; extractable, accepted)
+  and HOSTED-ONLY. The class bit lives INSIDE the signed header, and this
+  repo contains no writer path for HOSTED-ONLY and no decryption at all:
+  the reader refuses it fail-closed, and only after authenticity so the
+  refusal can't be spoofed by a forged file.
+- **Keys rotate** — key-id in the header, a compiled-in pin table
+  (currently EMPTY: no artifact has shipped, so every unverified-key
+  vessel fails closed — pin the first minting key in the same change that
+  ships the first artifact), revocation, and `--vessel-pubkey` as the
+  operator trust anchor (the `SEAL_VESSEL_PUBKEY` precedent).
+- **Apply law** — verify → refuse hosted-only → monotonic gate (downgrade
+  and lineage-fork refused; force logs) → construct the engine WHOLE →
+  serve. Every vessel failure is a loud boot failure (exit 1) — there is
+  no silent fallback to the compiled champion.
+- **Hardening** (the security posture, on record in `.plans/002`):
+  single-read bounded `open` (no stat-then-read window), verify-before-parse
+  with a 1 MiB payload cap, strict signatures, and a deterministic
+  2000-mutation always-on gate (a cargo-fuzz corpus rides before the first
+  public artifact ships).
+- **G1** — champion-from-vessel ≡ champion-from-substrate: decisions and
+  stats identical in-process and through the wire, proven by execution on
+  aarch64 AND x86_64 ([Bench 002](.benchmarks/002_vessel_format_gates.md)).
+- Minting tooling for real artifacts lives in the private improvement
+  home; `reflexer_vessel::encode_public` exists so anyone can mint vessels
+  for THEIR OWN genomes on the same carrier.
+
 ## Wasm + the Cloudflare Worker (`crates/reflexer-wasm`, `cloudflare/reflexer-worker`)
 
 The engine also builds as ONE `wasm32-wasip1` module that runs in two
@@ -140,17 +184,22 @@ curl -s -X POST https://reflexer.foxfox.workers.dev/v1/decide -d @request.json
 
 ## Repo map
 
-- `src/engine.rs` — the engine (reference genome + question mapping)
+- `src/engine.rs` — the engine (reference genome + question mapping + the
+  vessel-payload seam `from_vessel_payload`)
 - `src/lane.rs` — the bin-only measurement lane driver (one copy shared
   by the G1 test and the `measure` example)
 - `src/state_codec.rs` — the wire state schema
 - `src/proto.rs` — the line envelopes
 - `src/readout.rs` — the Bench-817 confidence dispatch (inherited)
-- `src/serve.rs` — one request line → one envelope line, transport-free
-- `crates/reflexer-wasm` · `cloudflare/reflexer-worker` — the wasm build + its Worker
 - `src/record.rs` — the trajectory submission client
+- `crates/reflexer-vessel` — the vessel format crate (P3): read/verify,
+  two-class header, key rotation, monotonic apply — payload-agnostic
+- `tests/g1_champion_replay.rs` — G1: wire ≡ in-process oracle (P2)
+- `tests/vessel_gates.rs` — G1 vessel-apply replay + the fail-closed
+  battery (P3)
 - `examples/measure.rs` — the measurement lane + G2 budget gate
-- `.proposals/001` · `.plans/001` — design + execution record
+- `.proposals/001` · `.plans/001` · `.plans/002` — design + execution
+  records (P2, P3)
 
 [`decision_wire`]: ../katgpt-rs/crates/katgpt-core/src/decision_wire.rs
 [`katgpt-tetris`]: ../katgpt-rs/crates/katgpt-tetris

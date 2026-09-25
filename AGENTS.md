@@ -37,18 +37,28 @@ are proven on aarch64 AND x86_64 by execution before crossing machines.
 
 ## Current state
 
-**P2 COMPLETE (engine bin + measurement lane + submission client).** The
-cargo package `reflexer` (lib + bin) serves `decision_wire` over stdio
-line-JSON: `place` (choice over the canonical `decide_scored` enumeration),
-`state` (5-level rubric), `survive` (noul); unknown questions abstain;
-typed error envelopes never kill the pipe; EOF exits 0. G1 bit-identity
-through the wire is gate-tested (`tests/g1_champion_replay.rs` — hold,
-no-hold, garbage-board geometries, all byte-identical to `play_game`). The
-measurement lane (`examples/measure.rs`, run `--release`) enforces the G2
-budget with box-state preflight (refuses on battery / MAX_LOAD, default 6).
-The trajectory submission client signs rows with the per-machine Ed25519
-key (opt-in `--record`). P0/P1 history: HISTORY.md. Next: P3 (the vessel
-format crate).
+**P3 COMPLETE (the vessel format crate) — P2 stands.** The cargo
+workspace is `reflexer` (lib + bin) + `crates/reflexer-vessel` (public,
+MIT; blake3 + ed25519-dalek only). The engine serves `decision_wire` over
+stdio line-JSON (`place`/`state`/`survive`, abstention first-class, typed
+error envelopes, EOF exits 0); G1 bit-identity through the wire is
+gate-tested (`tests/g1_champion_replay.rs` + `tests/vessel_gates.rs` —
+the P3 battery adds champion-from-vessel ≡ champion-from-substrate, both
+geometries, proven by execution on aarch64 AND x86_64, Bench 002).
+Vessels: format v1 (68B header + strict ed25519 over `header ‖ payload` +
+payload), two-class header (no HOSTED-ONLY writer path anywhere in this
+repo; readers refuse fail-closed after authenticity), key-id rotation
+(`DEFAULT_PINS` EMPTY until the first artifact ships; `--vessel-pubkey`
+is the operator pin), monotonic apply (downgrade + fork refused; force
+logs), single-read bounded open, 1 MiB caps — the security posture lives
+in `.plans/002` and the gates in `.benchmarks/002`. Bin flags:
+`--vessel`, `--vessel-pubkey[=hex]`, `--vessel-force-downgrade`,
+`--vessel-print`. The measurement lane (`examples/measure.rs`) enforces
+the G2 budget with box-state preflight; the trajectory client signs rows
+with the per-machine Ed25519 key (opt-in `--record`). P0–P2 history:
+HISTORY.md. Next: P4/P5 — hosted serving + deployment, private homes
+(riir-dapps / riir-deployer); this repo's part ends at the wire and the
+format.
 
 ## Build Commands
 
