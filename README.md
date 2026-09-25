@@ -136,7 +136,7 @@ curl -s -X POST https://reflexer.foxfox.workers.dev/v1/decide -d @request.json
 - `reflexer_host.mjs` is the zero-dependency WASI shim + host class both
   hosts load (the site mirrors it as `assets/reflexer_host.js`).
 - Deploy: manual from the M3; `.github/workflows/reflexer_worker.yml` is the
-  main-only CI mirror (needs the `CLOUDFLARE_API_TOKEN` secret).
+  main-only CI mirror (repo secret `CF_DEPLOY_API_TOKEN`; locally the same token sits in the gitignored `.env`).
 
 ## Repo map
 

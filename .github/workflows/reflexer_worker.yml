@@ -5,7 +5,8 @@
 # not run on develop: work lands on develop, and nothing here fires until a
 # commit touching the engine or the Worker reaches main.
 #
-# Needs repo secret CLOUDFLARE_API_TOKEN (a deploy-scoped token: Workers
+# Needs repo secret CF_DEPLOY_API_TOKEN (the same deploy-scoped token as the
+# gitignored local .env: Workers
 # Scripts edit). The engine's path deps expect katgpt-rs beside this repo,
 # so the job checks both out side by side.
 name: reflexer-worker
@@ -49,7 +50,7 @@ jobs:
       - name: Deploy
         working-directory: riir-reflexer/cloudflare/reflexer-worker
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_DEPLOY_API_TOKEN }}
         run: npx --yes wrangler@4 deploy
       - name: Smoke
         run: curl -fsS https://reflexer.foxfox.workers.dev/ | grep -q 68cae9d382014662
