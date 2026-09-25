@@ -69,12 +69,23 @@ bench-preflight law); their numbers are not comparable and not counted.
 The best-of-N read is the honest gate: a real regression raises the floor
 across runs; contention does not.
 
-## Dual-arch note (T7's crossing clause)
+## Dual-arch (T7's crossing clause) — BOTH ARCHES PROVEN BY EXECUTION
 
-aarch64: proven by execution (this record). x86_64: the T7 clause binds
-"before any artifact crosses machines" — no artifact has crossed; the
-x86_64 execution rung runs on the 4090 box when reachable (repo cloned
-there; its git-over-ssh was the blocker last session, https works).
+- **aarch64** (M3 Max, darwin, rustc 1.98.1): full suite 23/23; the
+  accepted G2 run above.
+- **x86_64** (4090 box, Windows, rustc 1.93.0): full suite 23/23 — G1
+  holds on x86_64 (wire ≡ oracle at every geometry). The 4090's own
+  measure run (correctness lane, `MAX_LOAD=999` — its latency numbers are
+  NOT comparable and NOT cited as records): G2 budget PASS there too, with
+  best-of-3 hold 225 µs / no-hold 297 µs — the beefier CPU with fewer
+  sibling agents, consistent with the M3 reading, not a competing record.
+- **Cross-arch decision identity, MEASURED**: all 16 measure-lane games
+  (both postures, every seed) produce byte-identical `pieces`/`lines`
+  stats on both arches — the champion's decisions are bit-identical
+  aarch64 ↔ x86_64 (expected: the decision path is f64
+  arithmetic + comparisons; the sigmoid lives only in the probability
+  readout, never in the argmax). Artifacts may now cross machines with
+  the T7 proof in hand.
 
 ## Reproduce
 
