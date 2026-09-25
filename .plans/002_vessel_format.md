@@ -99,8 +99,21 @@ Binding implementation hardening (T2/T4/T5 carry these):
 - [x] Monotonic apply (the T5 addition this review forced): refuse an
       artifact that is a lineage ANCESTOR of / older-version than the
       current genome unless explicitly forced; the force path logs.
-      (`check_monotonic`: `OlderThanCurrent` + `VersionFork`; the bin's
-      `--vessel-force-downgrade` logs and serves — both arms tested.)
+      (`check_monotonic`: `OlderThanCurrent` + `VersionFork`; PLUS — the
+      verdict-round-1 repair — `MIN_ARTIFACT_VERSION`, the compiled
+      release floor, and `check_floor`: the bin runs BOTH gates, so an
+      old VALIDLY-signed artifact refuses once the floor moves. The bin's
+      `--vessel-force-downgrade` logs and serves — all arms tested.)
+- [x] **The compiled pins are actually WIRED** (verdict round 1): the bin
+      starts from `default_pins()` (built from the const
+      `DEFAULT_PIN_KEYS` byte array — empty today, so everything still
+      fails `UnknownKey` until the first artifact ships, tested) and the
+      operator `--vessel-pubkey` wildcard only ADDS trust. A pinned key
+      verifies with no flag — tested at the wiring shape.
+- [x] **Hosted-only, said plainly** (verdict round 1): the class refusal
+      is an accident guard + audit signal, NOT encryption — no ciphertext
+      exists at this layer. Enforcement is DISTRIBUTION (the file never
+      leaves the hosted lane) + the private side's encryption-at-rest.
 - [x] Atomic swap via write-temp + rename (crash mid-apply leaves the old
       genome serving; no partial states). (Satisfied by construction in
       v1: apply is boot-time CONSTRUCTIVE — the engine is built whole
@@ -111,7 +124,9 @@ Binding implementation hardening (T2/T4/T5 carry these):
       artifact ships. (DEFERRED — the trigger is the first public
       artifact ship, which has not happened; the always-on deterministic
       2000-mutation sweep + every-truncation arm gate the parser
-      meanwhile.)
+      meanwhile. Scope when it lands: the container parser AND
+      `Genome::from_line` — the one parser the vessel layer feeds
+      verified bytes into.)
 - [x] Unknown ANYTHING fails closed: class, key-id, version, lineage
       break. (Magic, format version, flag bits, key-id, class — every
       unknown byte refuses, tested per class.)
