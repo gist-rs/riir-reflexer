@@ -47,6 +47,42 @@ Branch: `develop`. Session markers on every commit.
       AGENTS Current-state, HISTORY entry, BOUNDARY true-up, `.benchmarks/`
       gate record.
 
+## Security posture (threat model — on record, reviewed before T1)
+
+**Verdict: tamper-evident + fail-closed, by construction. Not unhackable
+— the format authenticates the ARTIFACT channel; endpoint compromise and
+public-artifact extraction are out of its scope by design (proposal
+§Honest caveats).**
+
+| attack | stopped by | residual |
+|---|---|---|
+| tampered bytes | BLAKE3 commit + Ed25519 over header+payload; any byte change breaks the chain; the engine never opens it | tamper is DETECTED, never accepted — an attacker may hand you a broken file, not a modified one that opens |
+| forged vessel (own key) | key-id pin table, fail-closed on unknown/revoked key-id (T4) | a rebuilt/forked bin with an attacker pin table — the BINARY channel's scope (SHA256SUMS / brew hash), not the format's |
+| replay of an old valid vessel | version + lineage commitments + MONOTONIC APPLY (binding on T5 below) | forced-override is an operator action, logged |
+| HOSTED-ONLY on uncontrolled hardware | class bit lives INSIDE the signed header (cannot be flipped); this repo contains no decryption — only refusal | the real wall is the private lane's encryption-at-rest; single leak ⇒ treated-as-public (accepted, on record) |
+| PUBLIC-RELEASE extraction | nothing — accepted by design | release lag is the moat, not obfuscation |
+| malicious-but-signed genome | genome is DATA interpreted by the engine — no code-execution path in apply | authenticity ≠ competence; the G1 replay gate + eval pins own competence at the measurement layer |
+| malformed-file parser attacks | hardening checklist below | fuzz corpus at T6 |
+
+Binding implementation hardening (T2/T4/T5 carry these):
+
+- [ ] Single-read discipline: read the file ONCE into memory; hash / verify /
+      apply the SAME buffer — no verify-then-re-read TOCTOU window.
+- [ ] Verify-before-parse: the signature over header+lengths is checked
+      BEFORE deep payload parsing; every length capped (no unbounded
+      allocation on unverified input).
+- [ ] ed25519-dalek STRICT verification (canonical; reject malleable
+      signatures).
+- [ ] Monotonic apply (the T5 addition this review forced): refuse an
+      artifact that is a lineage ANCESTOR of / older-version than the
+      current genome unless explicitly forced; the force path logs.
+- [ ] Atomic swap via write-temp + rename (crash mid-apply leaves the old
+      genome serving; no partial states).
+- [ ] cargo-fuzz corpus over the container parser before any public
+      artifact ships.
+- [ ] Unknown ANYTHING fails closed: class, key-id, version, lineage
+      break.
+
 ## Non-goals (private homes, forever)
 
 - Minting/improvement tooling (riir-train), hosted routes + settlement
