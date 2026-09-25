@@ -131,6 +131,14 @@ Binding implementation hardening (T2/T4/T5 carry these):
       break. (Magic, format version, flag bits, key-id, class — every
       unknown byte refuses, tested per class.)
 
+Residual, noted at the review's close (accepted): a TOCTOU window exists
+between the PRE-open `fs::metadata` regular-file check and `File::open` —
+an attacker who can write to the vessel's DIRECTORY could swap in a FIFO
+in that moment and hang boot (the open blocks; the post-open check never
+runs). The path is operator-chosen, so exposure is low; if it ever needs
+closing, `O_NONBLOCK` via `OpenOptionsExt::custom_flags` + the post-open
+check makes the open itself unable to block. Not fixed in v1.
+
 ## Non-goals (private homes, forever)
 
 - Minting/improvement tooling (riir-train), hosted routes + settlement
