@@ -28,3 +28,15 @@
 - Remote: gist-rs/riir-reflexer (public); develop is the working branch.
 - Next: P2 (engine bin + bin-only measurement lane + submission client),
   gated on katgpt-rs Issue 893 (P0) landing.
+
+## 2026-09-25 — P0 LANDED (the substrate crate exists)
+
+- katgpt-rs Issue 893 RESOLVED (`243c38a1b`, header touch-up `4db7824de`):
+  `katgpt-tetris` leaf crate — sim byte-identical, lookahead/rulebook with
+  4 module-path rewrites total, full Bench-891/892 bit-identity battery
+  PASS, G2 no-regression (0.32-0.33 ms/decision), champion genome
+  `68cae9d382014662` pinned by crate test as the frozen REFERENCE.
+  Record: katgpt-rs HISTORY.md §Issue 893.
+- BOUNDARY `May depend on` row updated: katgpt-tetris landed, P2 wires it.
+- Next: P2 — the engine bin + the bin-only measurement lane + the
+  trajectory submission client (plan: `.plans/001`).

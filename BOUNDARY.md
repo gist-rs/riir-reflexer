@@ -40,7 +40,7 @@ repo; file there.
 | dep | status |
 |---|---|
 | `katgpt-core` | non-optional (`decision_wire` + `hint_regret` features enabled explicitly; both opt-in; `rating`/`bmr` default-on) |
-| katgpt-rs Lane-M module (Issue 893) | planned, post-promotion |
+| `katgpt-tetris` (the katgpt-rs Issue-893 substrate crate) | landed 2026-09-25, katgpt-rs `243c38a1b` — the board sim + lookahead + rulebook evaluator + reference genome; wired into this repo's engine bin at P2 |
 
 **Zero riir-\* dependencies — the leaf law.** `Visibility: public` above is
 machine-read by the workspace boundary guard: any path dep on a workspace
