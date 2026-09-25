@@ -12,6 +12,15 @@ improvement machinery lives elsewhere (see `BOUNDARY.md`).
 Zero network calls, in the bin or any measurement path. Zero `riir-*`
 dependencies. MIT.
 
+## Built on KatGPT-RS
+
+The engine core is [KatGPT-RS](https://github.com/katopz/katgpt-rs) (public, MIT). From it (path deps
+`../katgpt-rs`):
+
+- `katgpt-core` (`decision_wire` feature) — the typed decision wire.
+- `katgpt-tetris` — `sim` (board simulation), `lookahead`, `rulebook`
+  (genome evaluator) and the frozen Bench-892 reference genome.
+
 ## Build
 
 ```sh
