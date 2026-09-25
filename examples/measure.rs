@@ -267,9 +267,11 @@ fn resolve_bin() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(|| manifest.join("target"));
     for profile in ["release", "debug"] {
-        let p = target_root.join(profile).join("reflexer");
-        if p.exists() {
-            return p;
+        for name in ["reflexer", "reflexer.exe"] {
+            let p = target_root.join(profile).join(name);
+            if p.exists() {
+                return p;
+            }
         }
     }
     eprintln!(
