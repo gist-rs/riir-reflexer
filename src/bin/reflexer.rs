@@ -125,7 +125,11 @@ fn main() {
 /// fallback-to-champion path does not exist, because a vessel that asked
 /// to be applied and failed must never be papered over.
 fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engine {
-    let mut pins = PinTable::empty();
+    // The compiled-in minting pins FIRST, then the operator wildcard — a
+    // pinned key verifies without any flag (the no-flag path must work
+    // the day the first artifact ships), and the operator pin only ADDS
+    // trust, never replaces it.
+    let mut pins = vessel::default_pins();
     if let Some(hex) = pubkey_hex {
         pins = pins.with_wildcard(parse_pubkey(hex).unwrap_or_else(|e| {
             eprintln!("reflexer: --vessel-pubkey: {e}");
@@ -136,12 +140,17 @@ fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engi
         eprintln!("reflexer: vessel refused: {e}");
         std::process::exit(1);
     });
-    if let Err(refusal) = verified.check_monotonic(&vessel::SUBSTRATE) {
+    // BOTH downgrade gates: the compiled release floor (a validly-signed
+    // OLD artifact cannot be handed to the operator once the floor moved)
+    // and the substrate monotonic baseline (catches the v0 lineage fork).
+    let floor_refusal = verified.check_floor(vessel::MIN_ARTIFACT_VERSION).err();
+    let mono_refusal = verified.check_monotonic(&vessel::SUBSTRATE).err();
+    if let (Some(refusal), _) | (_, Some(refusal)) = (floor_refusal, mono_refusal.clone()) {
         if !force {
             eprintln!("reflexer: vessel refused: {refusal}");
             std::process::exit(1);
         }
-        eprintln!("reflexer: monotonic gate FORCED by operator flag — downgrade applied (logged)");
+        eprintln!("reflexer: downgrade gate FORCED by operator flag — applied (logged)");
     }
     let engine = Engine::from_vessel_payload(verified.payload()).unwrap_or_else(|| {
         eprintln!(

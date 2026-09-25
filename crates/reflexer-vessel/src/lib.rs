@@ -7,10 +7,14 @@
 //!    `Genome::to_line`/`from_line`. Applying a vessel swaps the genome
 //!    WHOLE — blends do not preserve move rankings.
 //! 2. **Two classes, one refusal.** PUBLIC-RELEASE runs anywhere
-//!    (extractable, accepted). HOSTED-ONLY never reaches uncontrolled
-//!    hardware: no path in this repo WRITES class 1, and the reader
-//!    refuses it fail-closed. The class bit lives INSIDE the signed
-//!    header — it cannot be flipped without breaking the signature.
+//!    (extractable, accepted). HOSTED-ONLY: the class bit exists so the
+//!    reader refuses it on uncontrolled hardware — an ACCIDENT GUARD and
+//!    audit signal, not encryption (there is no ciphertext at this
+//!    layer; the private lane's encryption-at-rest is the actual wall).
+//!    The real enforcement is DISTRIBUTION: a hosted-only file never
+//!    leaves the hosted environment. No path in this repo WRITES class 1,
+//!    and the class bit lives INSIDE the signed header — it cannot be
+//!    flipped without breaking the signature.
 //! 3. **Keys rotate, unknown fails closed.** A signature under an
 //!    unknown or revoked key-id never opens the vessel.
 //!
@@ -36,7 +40,7 @@
 //! ## Security posture (Plan 002 §Security posture — binding)
 //!
 //! - **Single-read discipline:** callers hand `decode` one buffer (or use
-//!   [`open`], which stats-then-reads once); hash/verify/apply see the SAME
+//!   [`open`], which reads once, bounded); hash/verify/apply see the SAME
 //!   bytes — no verify-then-re-read TOCTOU window.
 //! - **Verify-before-parse:** structure and length caps are checked before
 //!   any signature work, and the signature is checked before the payload is
@@ -44,8 +48,10 @@
 //! - **Strict signatures:** `VerifyingKey::verify_strict` (canonical;
 //!   malleable / small-order keys rejected).
 //! - **Monotonic apply:** [`VerifiedVessel::check_monotonic`] refuses
-//!   older-than-current artifacts (the replay/downgrade arm); the force
-//!   path is an operator action and must log.
+//!   older-than-current artifacts (the replay/downgrade arm) and
+//!   [`VerifiedVessel::check_floor`] enforces the compiled-in release
+//!   floor ([`MIN_ARTIFACT_VERSION`]); the force path is an operator
+//!   action and must log.
 //! - **Unknown anything fails closed:** magic, format version, flag bits,
 //!   key-id, class, lineage — an unreadable vessel is a refused vessel.
 //!
@@ -270,11 +276,39 @@ impl PinTable {
     }
 }
 
-/// The compiled-in pins. EMPTY until the first public artifact ships: with
-/// no pinned minting key, every vessel fails closed — the correct posture
-/// for a repo that has minted nothing yet. The owner pins the real minting
-/// key here in the same change that ships the first artifact.
-pub const DEFAULT_PINS: PinTable = PinTable::empty();
+/// The compiled-in rollback floor (the release-time anti-downgrade
+/// baseline): the NEWEST shipped artifact's version at release time.
+/// Zero while no artifacts exist. Set in the same change that ships an
+/// artifact — the release-lag model's compile-time form. A validly-signed
+/// vessel OLDER than this floor refuses to boot (the replay/downgrade
+/// arm: an attacker who can place a file on the vessel path cannot hand
+/// the operator a pulled-back or known-weak old artifact).
+pub const MIN_ARTIFACT_VERSION: u64 = 0;
+
+/// The compiled-in minting pins as RAW KEY BYTES (const-constructible;
+/// `VerifyingKey::from_bytes` is not const). EMPTY until the first public
+/// artifact ships — with nothing minted, every vessel fails `UnknownKey`,
+/// which is the correct posture for a repo that has minted nothing.
+pub const DEFAULT_PIN_KEYS: [(u32, [u8; 32]); 0] = [];
+
+/// The compiled-in pin table the bin verifies against (before any
+/// operator `--vessel-pubkey` wildcard joins it).
+pub fn default_pins() -> PinTable {
+    pins_from_bytes(&DEFAULT_PIN_KEYS)
+}
+
+/// Build a pin table from raw verifying-key bytes (the const-friendly
+/// form `DEFAULT_PIN_KEYS` stores; bad key bytes are SKIPPED — a compiled
+/// table is authored, never hostile).
+pub fn pins_from_bytes(keys: &[(u32, [u8; 32])]) -> PinTable {
+    let mut t = PinTable::empty();
+    for (id, bytes) in keys {
+        if let Ok(k) = VerifyingKey::from_bytes(bytes) {
+            t.keys.push((*id, k));
+        }
+    }
+    t
+}
 
 // ── decode ───────────────────────────────────────────────────────────────
 
@@ -343,6 +377,22 @@ impl VerifiedVessel {
 
     pub fn commitment_hex(&self) -> String {
         hex32(&self.commitment)
+    }
+
+    /// The rollback-floor gate (the release-time anti-downgrade arm): the
+    /// offered artifact must not be older than `min`. Complements
+    /// [`VerifiedVessel::check_monotonic`]: the floor is the RELEASE's
+    /// baseline (no prior state needed — boot-time), the monotonic gate
+    /// binds a prior apply-state (runtime swap / re-apply). The bin runs
+    /// BOTH.
+    pub fn check_floor(&self, min: u64) -> Result<(), ApplyRefusal> {
+        if self.header.artifact_version < min {
+            return Err(ApplyRefusal::OlderThanCurrent {
+                current: min,
+                offered: self.header.artifact_version,
+            });
+        }
+        Ok(())
     }
 
     /// The monotonic-apply gate (the replay/downgrade arm of the security
@@ -426,12 +476,23 @@ pub fn decode(buf: &[u8], pins: &PinTable) -> Result<VerifiedVessel, VesselError
     Ok(VerifiedVessel { header, payload, commitment })
 }
 
-/// Read once, bounded (the single-read law): a `take(cap+1)` read can
-/// never allocate past the ceiling even if the file grows mid-flight —
-/// no stat-then-read window at all.
+/// Read once, bounded (the single-read law): regular-files only, then a
+/// `take(cap+1)` read that can never allocate past the ceiling even if
+/// the file grows mid-flight — no stat-then-read window at all. A FIFO or
+/// device on the vessel path is refused, not hung on.
 pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError> {
     use std::io::Read as _;
     let file = std::fs::File::open(path).map_err(|e| VesselError::Io(e.to_string()))?;
+    if !file
+        .metadata()
+        .map_err(|e| VesselError::Io(e.to_string()))?
+        .is_file()
+    {
+        return Err(VesselError::Io(format!(
+            "{} is not a regular file (vessels are files, not streams)",
+            path.display()
+        )));
+    }
     let cap = PREFIX_LEN + MAX_PAYLOAD;
     let mut buf = Vec::new();
     file.take(cap as u64 + 1)
@@ -725,6 +786,54 @@ mod tests {
             v5.check_monotonic(&ApplyState { artifact_version: 5, commitment: [9; 32] }),
             Err(ApplyRefusal::VersionFork { version: 5 })
         );
+    }
+
+    fn vessel_v(version: u64) -> Vec<u8> {
+        encode_public(&test_key(), 1, version, [0u8; 32], &payload())
+    }
+
+    // ── the rollback floor (the release-time anti-downgrade arm) ──────
+
+    #[test]
+    fn floor_refuses_old_validly_signed_artifacts() {
+        // The reviewer's exact scenario: floor at 2, an authentic v1
+        // offered — must refuse. An old-but-VALID artifact is exactly what
+        // an attacker with vessel-path write access hands the operator
+        // once newer artifacts exist; signature verification alone is
+        // happy to open it.
+        let v1 = decode(&vessel_v(1), &test_pins()).unwrap();
+        assert_eq!(
+            v1.check_floor(2),
+            Err(ApplyRefusal::OlderThanCurrent { current: 2, offered: 1 })
+        );
+        assert!(v1.check_floor(1).is_ok(), "floor == version is allowed (the floor IS a shipped artifact)");
+        assert!(v1.check_floor(0).is_ok(), "floor 0 = today's posture (no artifacts shipped)");
+        assert_eq!(MIN_ARTIFACT_VERSION, 0, "no artifacts shipped — the compiled floor must be 0");
+    }
+
+    #[test]
+    fn compiled_pin_table_resolves_without_any_flag() {
+        // The wiring the first-artifact change will use: raw key BYTES in a
+        // const array → a table that verifies with NO operator flag. The
+        // bin's default_pins() path (pins first, wildcard only adds).
+        let table = pins_from_bytes(&[(1, test_key().verifying_key().to_bytes())]);
+        assert!(
+            decode(&vessel_v(1), &table).is_ok(),
+            "a compiled pin must verify with no flag"
+        );
+        assert!(
+            decode(&vessel_v(1), &default_pins()).is_err(),
+            "today's compiled table is empty — everything fails UnknownKey until the first artifact ships"
+        );
+        // a wrong-but-parseable compiled key never verifies (from_bytes
+        // accepts any decompressable encoding — nearly all 32-byte strings
+        // — so the observable law is the signature failing, and a compiled
+        // table is authored, never hostile)
+        let wrong = pins_from_bytes(&[(1, SigningKey::from_bytes(&[9u8; 32]).verifying_key().to_bytes())]);
+        assert!(matches!(
+            decode(&vessel_v(1), &wrong),
+            Err(VesselError::BadSignature)
+        ));
     }
 
     // ── fuzz-lite: deterministic mutation sweep ──────────────────────────
