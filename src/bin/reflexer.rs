@@ -21,7 +21,8 @@
 //! inspects a vessel's header without applying it.
 
 use reflexer::engine::Engine;
-use reflexer::proto::{ErrorEnvelope, GENOME_ID, PROTO, ProtoError, ResponseEnvelope, codes};
+use reflexer::proto::{GENOME_ID, PROTO};
+use reflexer::serve::{error_envelope, handle_line, success_envelope};
 use reflexer_vessel::{self as vessel, VesselError};
 use std::io::{BufRead, Write};
 
@@ -81,31 +82,9 @@ fn main() {
                     eprintln!("reflexer: trajectory record failed: {e}");
                     std::process::exit(1);
                 }
-                let envelope = ResponseEnvelope {
-                    proto: PROTO,
-                    genome: engine.genome_id(),
-                    response,
-                    in_engine_decision_ns: ns,
-                };
-                write_line(
-                    &mut out,
-                    &serde_json::to_string(&envelope).expect("serialize envelope"),
-                );
+                write_line(&mut out, &success_envelope(&engine, response, ns));
             }
-            Err(err) => {
-                let envelope = ErrorEnvelope {
-                    proto: PROTO,
-                    error: ProtoError {
-                        code: err.code.to_string(),
-                        message: err.message,
-                        request_index,
-                    },
-                };
-                write_line(
-                    &mut out,
-                    &serde_json::to_string(&envelope).expect("serialize error"),
-                );
-            }
+            Err(err) => write_line(&mut out, &error_envelope(&err, request_index)),
         }
     }
 
@@ -273,48 +252,6 @@ fn hex32(b: &[u8; 32]) -> String {
         let _ = write!(s, "{byte:02x}");
     }
     s
-}
-
-/// A typed line failure (code + message) — never a panic.
-struct LineError {
-    code: &'static str,
-    message: String,
-}
-
-fn handle_line(
-    engine: &Engine,
-    line: &str,
-) -> Result<
-    (
-        katgpt_core::decision_wire::DecisionRequest,
-        katgpt_core::decision_wire::DecisionResponse,
-        u64,
-    ),
-    LineError,
-> {
-    let request: katgpt_core::decision_wire::DecisionRequest =
-        serde_json::from_str(line).map_err(|e| LineError {
-            code: codes::BAD_JSON,
-            message: e.to_string(),
-        })?;
-    request.validate().map_err(|e| LineError {
-        code: codes::BAD_REQUEST,
-        message: format!("{e:?}"),
-    })?;
-    // Defense in depth: the engine is deterministic and should never
-    // panic, but a panic must answer an envelope, not kill the pipe.
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| engine.answer(&request)));
-    match result {
-        Ok(Ok((response, ns))) => Ok((request, response, ns)),
-        Ok(Err(e)) => Err(LineError {
-            code: e.code(),
-            message: e.message(),
-        }),
-        Err(p) => Err(LineError {
-            code: codes::INTERNAL,
-            message: format!("engine panicked: {p:?}"),
-        }),
-    }
 }
 
 fn flag_value(args: &[String], flag: &str) -> Option<String> {

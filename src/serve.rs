@@ -49,24 +49,37 @@ pub fn handle_line(
     }
 }
 
+/// The success half of [`envelope_line`], factored out for hosts that run
+/// [`handle_line`] themselves (the stdio bin records the request before
+/// writing) — same bytes, one construction site.
+pub fn success_envelope(engine: &Engine, response: DecisionResponse, ns: u64) -> String {
+    serde_json::to_string(&ResponseEnvelope {
+        proto: PROTO,
+        genome: engine.genome_id(),
+        response,
+        in_engine_decision_ns: ns,
+    })
+    .expect("envelopes serialize")
+}
+
+/// The error half of [`envelope_line`], factored out for the same hosts.
+pub fn error_envelope(err: &LineError, request_index: u64) -> String {
+    serde_json::to_string(&ErrorEnvelope {
+        proto: PROTO,
+        error: ProtoError {
+            code: err.code.to_string(),
+            message: err.message.clone(),
+            request_index,
+        },
+    })
+    .expect("envelopes serialize")
+}
+
 /// [`handle_line`] rendered as the wire envelope JSON — success or typed
 /// error, exactly the bin's stdout line for the same input.
 pub fn envelope_line(engine: &Engine, line: &str, request_index: u64) -> String {
     match handle_line(engine, line) {
-        Ok((_, response, ns)) => serde_json::to_string(&ResponseEnvelope {
-            proto: PROTO,
-            genome: engine.genome_id(),
-            response,
-            in_engine_decision_ns: ns,
-        }),
-        Err(err) => serde_json::to_string(&ErrorEnvelope {
-            proto: PROTO,
-            error: ProtoError {
-                code: err.code.to_string(),
-                message: err.message,
-                request_index,
-            },
-        }),
+        Ok((_, response, ns)) => success_envelope(engine, response, ns),
+        Err(err) => error_envelope(&err, request_index),
     }
-    .expect("envelopes serialize")
 }
