@@ -482,6 +482,20 @@ pub fn decode(buf: &[u8], pins: &PinTable) -> Result<VerifiedVessel, VesselError
 /// device on the vessel path is refused, not hung on.
 pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError> {
     use std::io::Read as _;
+    // PRE-open regular-file check: on Unix, File::open on a FIFO blocks
+    // until a writer appears — the check must happen BEFORE the open, or
+    // a FIFO on the vessel path hangs boot (found by live probe in the
+    // posture review, round 2). Symlink note: fs::metadata FOLLOWS
+    // symlinks, so a symlink to a regular file is fine (intended).
+    if !std::fs::metadata(path)
+        .map_err(|e| VesselError::Io(e.to_string()))?
+        .is_file()
+    {
+        return Err(VesselError::Io(format!(
+            "{} is not a regular file (vessels are files, not streams)",
+            path.display()
+        )));
+    }
     let file = std::fs::File::open(path).map_err(|e| VesselError::Io(e.to_string()))?;
     if !file
         .metadata()
@@ -837,6 +851,39 @@ mod tests {
     }
 
     // ── fuzz-lite: deterministic mutation sweep ──────────────────────────
+
+    #[test]
+    #[cfg(unix)]
+    fn fifo_and_directory_paths_refuse_instead_of_hanging() {
+        // The round-2 probe: File::open on a FIFO BLOCKS on Unix, so the
+        // regular-file check must run BEFORE the open — assert a FIFO
+        // path refuses fast (without the pre-open check this test HANGS;
+        // the harness timeout is the backstop, not the defense).
+        let fifo = std::env::temp_dir()
+            .join(format!("reflexer-vessel-fifo-{}", std::process::id()));
+        let _ = std::fs::remove_file(&fifo);
+        let have_mkfifo = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if have_mkfifo {
+            let started = std::time::Instant::now();
+            let got = open(&fifo, &test_pins());
+            let _ = std::fs::remove_file(&fifo);
+            assert!(got.is_err(), "a FIFO must refuse, not open");
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(2),
+                "refusal took {:?} — the pre-open check did not run first",
+                started.elapsed()
+            );
+        }
+        // a directory refuses too (metadata().is_file() is false) — the
+        // cfg-portable arm of the same law: non-regular files never
+        // reach the read
+        let dir = std::env::temp_dir();
+        assert!(open(&dir, &test_pins()).is_err(), "a directory must refuse");
+    }
 
     #[test]
     fn mutated_vessels_never_panic_and_never_open() {

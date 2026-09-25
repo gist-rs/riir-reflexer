@@ -22,7 +22,7 @@
 
 use reflexer::engine::Engine;
 use reflexer::proto::{ErrorEnvelope, GENOME_ID, PROTO, ProtoError, ResponseEnvelope, codes};
-use reflexer_vessel::{self as vessel, PinTable, VesselError};
+use reflexer_vessel::{self as vessel, VesselError};
 use std::io::{BufRead, Write};
 
 fn main() {
@@ -143,14 +143,25 @@ fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engi
     // BOTH downgrade gates: the compiled release floor (a validly-signed
     // OLD artifact cannot be handed to the operator once the floor moved)
     // and the substrate monotonic baseline (catches the v0 lineage fork).
-    let floor_refusal = verified.check_floor(vessel::MIN_ARTIFACT_VERSION).err();
-    let mono_refusal = verified.check_monotonic(&vessel::SUBSTRATE).err();
-    if let (Some(refusal), _) | (_, Some(refusal)) = (floor_refusal, mono_refusal.clone()) {
+    let floor_refusal = verified.check_floor(vessel::MIN_ARTIFACT_VERSION).err().map(|r| r.to_string());
+    let mono_refusal = verified.check_monotonic(&vessel::SUBSTRATE).err().map(|r| r.to_string());
+    // WHICH gate fired (the forced line is the audit trail — round-2 note)
+    let (refusal, gate) = match (floor_refusal, mono_refusal) {
+        (Some(r), _) => (r, "the release floor"),
+        (None, Some(r)) => (r, "the substrate baseline"),
+        (None, None) => (String::new(), ""),
+    };
+    if !refusal.is_empty() {
         if !force {
             eprintln!("reflexer: vessel refused: {refusal}");
             std::process::exit(1);
         }
-        eprintln!("reflexer: downgrade gate FORCED by operator flag — applied (logged)");
+        eprintln!(
+            "reflexer: downgrade gate FORCED by operator flag — applied (logged): \
+             artifact v{} bypassed {gate} [floor={}] — {refusal}",
+            verified.header().artifact_version,
+            vessel::MIN_ARTIFACT_VERSION
+        );
     }
     let engine = Engine::from_vessel_payload(verified.payload()).unwrap_or_else(|| {
         eprintln!(
@@ -212,7 +223,10 @@ fn print_vessel(path: &str, pubkey_hex: Option<&str>) {
         c.copy_from_slice(h.finalize().as_bytes());
         hex32(&c)
     };
-    let mut pins = PinTable::empty();
+    // Same table the boot path uses (round-2 consistency note): compiled
+    // pins first, so inspecting a real artifact works with no flag the
+    // day the first artifact ships — the wildcard only ADDS.
+    let mut pins = vessel::default_pins();
     if let Some(hex) = pubkey_hex {
         pins = pins.with_wildcard(parse_pubkey(hex).unwrap_or_else(|e| {
             eprintln!("reflexer: --vessel-pubkey: {e}");
