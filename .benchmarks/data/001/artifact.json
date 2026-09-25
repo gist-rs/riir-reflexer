@@ -1,0 +1,471 @@
+{
+  "best_of_runs": 3,
+  "bin_blake3": "e090bc81ed61b3bf5d2b5f64c2c638ccf14dd130a3cb029b9828eb43c9b8887d",
+  "budget": {
+    "budget_hold_p50_ns": 1000000,
+    "budget_nohold_p50_ns": 500000,
+    "budget_p99_ns": 3000000,
+    "hold_p50_ns": 368292,
+    "nohold_p50_ns": 353375,
+    "pass": true
+  },
+  "games": [
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 1
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 90,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 2
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 3
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 4
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 5
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 91,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 1
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 194,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 2
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 3
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 4
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 5
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 7
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 8
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 196,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 9
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 10
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 1
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 90,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 2
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 3
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 4
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 5
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 91,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 1
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 194,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 2
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 3
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 4
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 5
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 7
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 8
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 196,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 9
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 10
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 1
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 90,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 2
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 3
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 93,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 4
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 94,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 5
+    },
+    {
+      "cap": 240,
+      "g1_pass": true,
+      "lines": 91,
+      "pieces": 240,
+      "posture": "hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 1
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 194,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 2
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 197,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 3
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 4
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 5
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 198,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 6
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 7
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 8
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 196,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 9
+    },
+    {
+      "cap": 500,
+      "g1_pass": true,
+      "lines": 195,
+      "pieces": 500,
+      "posture": "no-hold",
+      "seed": 10
+    }
+  ],
+  "genome": "68cae9d382014662",
+  "hold_best_in_engine_ns": {
+    "max": 1224709,
+    "p50": 368292,
+    "p90": 595500,
+    "p99": 970375
+  },
+  "nohold_best_in_engine_ns": {
+    "max": 1459500,
+    "p50": 353375,
+    "p90": 644792,
+    "p99": 1060250
+  },
+  "proto": 1,
+  "provenance": {
+    "arch": "aarch64",
+    "loadavg": 5.09,
+    "power": "AC"
+  },
+  "round_trip_ns": {
+    "max": 11029125,
+    "p50": 505459,
+    "p90": 896125,
+    "p99": 1261583
+  },
+  "runs": [
+    {
+      "hold_in_engine_ns": {
+        "max": 1224709,
+        "p50": 368292,
+        "p90": 595500,
+        "p99": 970375
+      },
+      "nohold_in_engine_ns": {
+        "max": 4416583,
+        "p50": 354500,
+        "p90": 619000,
+        "p99": 1503292
+      },
+      "run": 1
+    },
+    {
+      "hold_in_engine_ns": {
+        "max": 1676500,
+        "p50": 591291,
+        "p90": 906333,
+        "p99": 1194500
+      },
+      "nohold_in_engine_ns": {
+        "max": 10963292,
+        "p50": 618792,
+        "p90": 955833,
+        "p99": 1220125
+      },
+      "run": 2
+    },
+    {
+      "hold_in_engine_ns": {
+        "max": 1421333,
+        "p50": 631250,
+        "p90": 971166,
+        "p99": 1208625
+      },
+      "nohold_in_engine_ns": {
+        "max": 1459500,
+        "p50": 353375,
+        "p90": 644792,
+        "p99": 1060250
+      },
+      "run": 3
+    }
+  ],
+  "schema": "reflexer-measure-v1"
+}

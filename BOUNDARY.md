@@ -39,7 +39,7 @@ repo; file there.
 
 | dep | status |
 |---|---|
-| `katgpt-core` | non-optional (`decision_wire` + `hint_regret` features enabled explicitly; both opt-in; `rating`/`bmr` default-on) |
+| `katgpt-core` | non-optional (`decision_wire` enabled — the wire; `hint_regret` lands WITH its consumer, not yet wired; both opt-in features on katgpt-core's side) |
 | `katgpt-tetris` (the katgpt-rs Issue-893 substrate crate) | landed 2026-09-25, katgpt-rs `243c38a1b` — the board sim + lookahead + rulebook evaluator + reference genome; wired into this repo's engine bin at P2 |
 
 **Zero riir-\* dependencies — the leaf law.** `Visibility: public` above is

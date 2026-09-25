@@ -40,3 +40,48 @@
 - BOUNDARY `May depend on` row updated: katgpt-tetris landed, P2 wires it.
 - Next: P2 — the engine bin + the bin-only measurement lane + the
   trajectory submission client (plan: `.plans/001`).
+
+## 2026-09-25 — P2 LANDED (engine bin + measurement lane + submission client)
+
+- The cargo package is born: lib + bin `reflexer` (edition 2024, MIT,
+  `publish = false`). Deps: katgpt-core (`decision_wire`) + katgpt-tetris
+  (both path deps into `../katgpt-rs` — the C3b leaf law) + serde/serde_json
+  + blake3 + ed25519-dalek/rand_core (the submission key). Cargo.lock
+  committed (a bin whose artifacts pin binary BLAKE3 wants reproducible
+  builds).
+- The engine: ONE genome serves the bin — the frozen Bench-892 champion
+  (`68cae9d382014662`, asserted at load). One `decide_scored` search answers
+  a whole request: `place` (choice, first-strict-argmax — `decide`'s exact
+  fold), `state` (5-level rubric via σ(v/200)), `survive` (noul).
+  Unknown questions ABSTAIN (confidence 0). Abstention is structural
+  (top-out), never a threshold inside game replay — bit-identity demands it.
+- Probabilities: sigmoid-margin weights at the population-std scale — the
+  tetris_09 site-walk convention, inherited (sigmoid, never softmax).
+  Confidence: the Bench-817 dispatch, inherited (`src/readout.rs`).
+- The line protocol: response envelopes carry `in_engine_decision_ns`
+  (serde + stdio excluded); typed error codes (`bad_json`, `bad_request`,
+  `bad_state`, `question_kind`, `options_count`, `internal`); the pipe
+  survives every malformed line; EOF exits 0. `options_count` is
+  fail-closed bit-identity defense: a client whose enumeration diverges
+  from `decide_scored`'s candidate order gets a typed refusal, not a
+  silently-misaligned index.
+- G1 gate (`tests/g1_champion_replay.rs`): wire-driven games are
+  byte-identical to the in-process oracle at three geometries (hold
+  `play_game` posture seeds 1..=6 cap 240; no-hold h2h posture seeds 1..=4
+  cap 200; garbage-board starts seeds 11..=13) — decision sequences AND
+  game stats. The oracle itself is sanity-asserted against
+  `katgpt_tetris::rulebook::play_game`.
+- The measurement lane (`examples/measure.rs`, `src/lane.rs` — one driver
+  shared with the G1 test): subprocess the built bin; binary BLAKE3 +
+  genome digest pinned per artifact; G1 proven inline on every measured
+  game; in-engine vs round-trip rendered per posture; REFUSES on battery
+  and over MAX_LOAD (default 6, the reflex bench-preflight law); G2 budget
+  enforced in-run (in-engine p50 ≤ 500 µs, p99 ≤ 1500 µs — policy vs the
+  substrate's own 0.32–0.33 ms/decision record).
+- Trajectory submission (opt-in `--record`): replayable rows + a signed
+  manifest (Ed25519 over `reflexer-trajectory-v1\n{rows}\n{blake3}\n{genome}\n`),
+  per-machine key at `$REFLEXER_SUBMISSION_KEY` or
+  `~/.config/reflexer/submission.ed25519` (0600). No billing code, ever.
+- BOUNDARY `May depend on` trued up: katgpt-core's `hint_regret` feature
+  lands WITH its consumer (not yet wired); only `decision_wire` is enabled.
+- Next: P3 — the vessel format crate (read/verify, class header, rotation).

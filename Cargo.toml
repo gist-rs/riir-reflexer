@@ -1,0 +1,16 @@
+[package]
+name = "reflexer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Public decision engine: runs genomes over game sims, serves typed decisions over decision_wire"
+
+[dependencies]
+katgpt-core = { path = "../katgpt-rs/crates/katgpt-core", features = ["decision_wire"] }
+katgpt-tetris = { path = "../katgpt-rs/crates/katgpt-tetris" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+blake3 = "1"
+ed25519-dalek = "2"
+rand_core = { version = "0.6", features = ["getrandom"] }

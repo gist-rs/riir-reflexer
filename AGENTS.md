@@ -37,13 +37,34 @@ are proven on aarch64 AND x86_64 by execution before crossing machines.
 
 ## Current state
 
-**BORN PUBLIC (P1 complete).** MIT licence (the katgpt-rs LICENSE form);
-`Visibility: public` in BOUNDARY.md is machine-read by the workspace
-boundary guard — a path dep on any sibling other than katgpt-rs fails the
-contract check mechanically (check C3b). Registered in the workspace
-contract set (repo_set + the riir-ai canonical matrix). No Cargo.toml yet —
-code starts at P2. katgpt-rs Issue 893 (P0, the substrate module) is filed;
-its landing gates P2's engine bin.
+**P2 COMPLETE (engine bin + measurement lane + submission client).** The
+cargo package `reflexer` (lib + bin) serves `decision_wire` over stdio
+line-JSON: `place` (choice over the canonical `decide_scored` enumeration),
+`state` (5-level rubric), `survive` (noul); unknown questions abstain;
+typed error envelopes never kill the pipe; EOF exits 0. G1 bit-identity
+through the wire is gate-tested (`tests/g1_champion_replay.rs` — hold,
+no-hold, garbage-board geometries, all byte-identical to `play_game`). The
+measurement lane (`examples/measure.rs`, run `--release`) enforces the G2
+budget with box-state preflight (refuses on battery / MAX_LOAD, default 6).
+The trajectory submission client signs rows with the per-machine Ed25519
+key (opt-in `--record`). P0/P1 history: HISTORY.md. Next: P3 (the vessel
+format crate).
+
+## Build Commands
+
+```sh
+cargo check
+cargo clippy --all-targets -- -D warnings
+cargo test                                   # incl. G1 (wire vs in-process oracle)
+cargo build --release --bin reflexer --example measure
+cargo run --release --example measure        # the G2 budget gate (box-state preflight)
+```
+
+Path deps expect `../katgpt-rs` beside this repo. Use an isolated
+`CARGO_TARGET_DIR` when a sibling build holds the lock. The measurement
+contract (wire state schema, question ids, envelopes, error codes) is
+README.md §"The measurement contract" — the one home; do not restate it
+here.
 
 ## Numbering Discipline
 
