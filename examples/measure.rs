@@ -280,6 +280,7 @@ fn resolve_bin() -> PathBuf {
 
 #[derive(PartialEq)]
 enum Power {
+    #[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
     Ac,
     Battery,
     NoBattery,
