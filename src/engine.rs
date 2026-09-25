@@ -100,6 +100,24 @@ impl Engine {
         Self { genome }
     }
 
+    /// An engine over ANY genome — the vessel-apply construction seam
+    /// (Plan 002 T5): the caller verifies the artifact (the vessel crate's
+    /// `decode`), binds the payload to a genome here, and ONLY a fully
+    /// constructed engine starts serving. Constructive apply — there is
+    /// no partially-swapped state to observe.
+    pub fn with_genome(genome: Genome) -> Self {
+        Self { genome }
+    }
+
+    /// The vessel payload binding: `Genome::from_line` — the whole-
+    /// snapshot wire (never a blend). Returns `None` when the verified
+    /// payload is not a genome line (the vessel layer is payload-agnostic
+    /// BY DESIGN; this is the only place bytes become a genome).
+    pub fn from_vessel_payload(payload: &[u8]) -> Option<Self> {
+        let line = std::str::from_utf8(payload).ok()?;
+        Genome::from_line(line).map(Self::with_genome)
+    }
+
     pub fn genome_id(&self) -> String {
         self.genome.id()
     }
