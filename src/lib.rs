@@ -16,12 +16,18 @@
 //! - [`engine`] — the engine: reference genome + question mapping.
 //! - [`record`] — the opt-in trajectory submission client (signs rows;
 //!   zero billing code, per-machine key only).
+//! - [`serve`] — one request line → one envelope line, transport-free (the
+//!   wasm build + the Cloudflare Worker host it; the bin speaks it on stdio).
 //!
 //! Zero network calls anywhere. Zero riir-* dependencies (the leaf law).
 
 pub mod engine;
+// The measurement lane spawns the bin as a subprocess — a host-only tool;
+// it has no meaning inside the wasm build (crates/reflexer-wasm).
+#[cfg(not(target_family = "wasm"))]
 pub mod lane;
 pub mod proto;
 pub mod readout;
 pub mod record;
+pub mod serve;
 pub mod state_codec;

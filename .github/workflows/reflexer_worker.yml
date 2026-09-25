@@ -1,0 +1,55 @@
+# Deploy the reflexer Worker (cloudflare/reflexer-worker) — MAIN ONLY.
+#
+# The standing deploy is MANUAL from the M3 (riir-deployer manifest, private);
+# this workflow is the CI mirror for when main exists and is pushed. It does
+# not run on develop: work lands on develop, and nothing here fires until a
+# commit touching the engine or the Worker reaches main.
+#
+# Needs repo secret CLOUDFLARE_API_TOKEN (a deploy-scoped token: Workers
+# Scripts edit). The engine's path deps expect katgpt-rs beside this repo,
+# so the job checks both out side by side.
+name: reflexer-worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "crates/reflexer-wasm/**"
+      - "cloudflare/reflexer-worker/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/reflexer_worker.yml"
+
+concurrency:
+  group: reflexer-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: riir-reflexer
+      - uses: actions/checkout@v6
+        with:
+          repository: katopz/katgpt-rs
+          path: katgpt-rs
+      - name: Rust + wasm32-wasip1
+        run: rustup toolchain install stable --profile minimal --target wasm32-wasip1 && rustup default stable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Build reflexer.wasm
+        run: riir-reflexer/cloudflare/reflexer-worker/build.sh
+      - name: Engine gates (lib + serve parity)
+        working-directory: riir-reflexer
+        run: cargo test --test serve_parity -p reflexer
+      - name: Deploy
+        working-directory: riir-reflexer/cloudflare/reflexer-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
+      - name: Smoke
+        run: curl -fsS https://reflexer.foxfox.workers.dev/ | grep -q 68cae9d382014662

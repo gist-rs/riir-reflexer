@@ -110,6 +110,34 @@ The signing key is the per-machine key at `$REFLEXER_SUBMISSION_KEY` or
 billing code, no tokenomics — the private improvement loop
 replay-verifies rows against its own engine before crediting anything.
 
+## Wasm + the Cloudflare Worker (`crates/reflexer-wasm`, `cloudflare/reflexer-worker`)
+
+The engine also builds as ONE `wasm32-wasip1` module that runs in two
+hosts — the browser (the reflex-site arena's "Reflexer · wasm local" board)
+and a Cloudflare Worker (`https://reflexer.foxfox.workers.dev`, the arena's
+"Reflexer · Cloudflare" board + the playground). Same bytes, so the two
+answer identically and differ only by the network hop.
+
+```sh
+cloudflare/reflexer-worker/build.sh [--site ../reflex-site]   # wasm (+ the site mirror)
+curl -s https://reflexer.foxfox.workers.dev/                  # {name, version, proto, genome}
+curl -s -X POST https://reflexer.foxfox.workers.dev/v1/decide -d @request.json
+```
+
+- `POST /v1/decide` takes one `DecisionRequest` and answers the bin's exact
+  stdout envelope (`serve::envelope_line`, gated line-for-line against the
+  bin by `tests/serve_parity.rs`): 200 success · 422 typed error · 500
+  `internal` (a wasm trap; the instance is re-created).
+- Stateless and free: no secrets, bindings, storage, or request logging;
+  CORS open.
+- `in_engine_decision_ns` reads ~0 on Workers (their clock is frozen during
+  compute — `X-Reflexer-Clock: frozen-during-compute`); the caller's round
+  trip is the honest latency.
+- `reflexer_host.mjs` is the zero-dependency WASI shim + host class both
+  hosts load (the site mirrors it as `assets/reflexer_host.js`).
+- Deploy: manual from the M3; `.github/workflows/reflexer_worker.yml` is the
+  main-only CI mirror (needs the `CLOUDFLARE_API_TOKEN` secret).
+
 ## Repo map
 
 - `src/engine.rs` — the engine (reference genome + question mapping)
@@ -118,6 +146,8 @@ replay-verifies rows against its own engine before crediting anything.
 - `src/state_codec.rs` — the wire state schema
 - `src/proto.rs` — the line envelopes
 - `src/readout.rs` — the Bench-817 confidence dispatch (inherited)
+- `src/serve.rs` — one request line → one envelope line, transport-free
+- `crates/reflexer-wasm` · `cloudflare/reflexer-worker` — the wasm build + its Worker
 - `src/record.rs` — the trajectory submission client
 - `examples/measure.rs` — the measurement lane + G2 budget gate
 - `.proposals/001` · `.plans/001` — design + execution record

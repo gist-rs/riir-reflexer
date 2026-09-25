@@ -1,0 +1,13 @@
+[package]
+name = "reflexer-wasm"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "The reflexer engine as one wasm32-wasip1 module — the same bytes run in-tab (arena 'wasm local') and in the Cloudflare Worker"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+reflexer = { path = "../.." }

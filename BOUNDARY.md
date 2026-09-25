@@ -23,13 +23,17 @@ repo; file there.
 - The trajectory submission client (free, opt-in; signs against the public
   wire contract; zero billing code).
 - Public game-domain sims (public-origin list below).
+- The engine's wasm build (`crates/reflexer-wasm`, `wasm32-wasip1`) and its
+  free, stateless demo host (`cloudflare/reflexer-worker`: the line protocol
+  over `POST /v1/decide` — no keys, no storage, no metering, no settlement;
+  the stdio bin over HTTP). The same bytes run in-tab on the arena site.
 
 ## Does not own
 
 | Concern | Correct home |
 |---|---|
 | The improvement loop and artifact minting | riir-train (private) |
-| Hosted serving, settlement, contribution economics | riir-dapps (private) |
+| Hosted serving (metered/keyed/settled), settlement, contribution economics | riir-dapps (private) — the free stateless demo Worker above is not this |
 | Deploy orchestration | riir-deployer (private) |
 | The arena site / serving product | riir-reflex |
 | Public substrate (board sim, lookahead, rulebook evaluator, reference genome) | the katgpt-rs Issue-893 module — consumed, never duplicated |

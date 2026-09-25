@@ -7,7 +7,7 @@ publish = false
 description = "Public decision engine: runs genomes over game sims, serves typed decisions over decision_wire"
 
 [workspace]
-members = ["crates/reflexer-vessel"]
+members = ["crates/reflexer-vessel", "crates/reflexer-wasm"]
 
 [dependencies]
 katgpt-core = { path = "../katgpt-rs/crates/katgpt-core", features = ["decision_wire"] }

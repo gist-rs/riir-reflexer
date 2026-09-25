@@ -1,0 +1,19 @@
+# The reflexer engine Worker — stateless, free, zero secrets, zero bindings.
+# Build the wasm first (it is gitignored): ./build.sh [--site ../../../reflex-site]
+# Deploy: the riir-deployer cf-worker provider stages this dir verbatim and
+# runs `wrangler deploy` (manual, from the M3); CI mirror in
+# .github/workflows/reflexer_worker.yml (main only).
+name = "reflexer"
+main = "worker.mjs"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# reflexer.wasm is imported as a precompiled WebAssembly.Module (the only
+# form Workers accept — no runtime compile from bytes).
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = false
+
+[observability]
+enabled = false
