@@ -35,7 +35,7 @@ repo; file there.
 | The improvement loop and artifact minting | riir-train (private) |
 | Hosted serving (metered/keyed/settled), settlement, contribution economics | riir-dapps (private) — the free stateless demo Worker above is not this |
 | Deploy orchestration | riir-deployer (private) |
-| The arena site / serving product | riir-reflex |
+| The arena site / serving product | riir-reflex (site repo `gist-rs/reflex-site`) — this engine is shown there as the *Reflex · rulebook* lane |
 | Public substrate (board sim, lookahead, rulebook evaluator, reference genome) | the katgpt-rs Issue-893 module — consumed, never duplicated |
 | VSL1/ARTB asset vessels | riir-neuron-db — a deliberate artifact-class split, recorded both sides; this repo's vessel format is its own public crate |
 
