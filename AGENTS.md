@@ -50,7 +50,14 @@ payload), two-class header (no HOSTED-ONLY writer path anywhere in this
 repo; readers refuse fail-closed after authenticity), key-id rotation
 (`DEFAULT_PINS` EMPTY until the first artifact ships; `--vessel-pubkey`
 is the operator pin), monotonic apply (downgrade + fork refused; force
-logs), single-read bounded open, 1 MiB caps — the security posture lives
+logs), single-read bounded open, class-aware payload caps (`049a583`:
+PUBLIC-RELEASE stays 1 MiB — `MAX_PAYLOAD`, the bound on every untrusted
+read path incl. the wasm build; HOSTED-ONLY may carry up to
+`MAX_HOSTED_PAYLOAD` 16 MiB at `peek()`, the class read from the SIGNED
+header before any payload work, while `open()` refuses a file DECLARING
+the hosted class at the 132-byte prefix — `HostedOnlyPath`, a structural
+fact about the bytes, pre-auth by construction; format stays v1, no
+encoder for class 1 exists by design) — the security posture lives
 in `.plans/002` and the gates in `.benchmarks/002`. Bin flags:
 `--vessel`, `--vessel-pubkey[=hex]`, `--vessel-force-downgrade`,
 `--vessel-print`. The measurement lane (`examples/measure.rs`) enforces

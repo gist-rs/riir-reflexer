@@ -1,5 +1,36 @@
 # HISTORY.md — riir-reflexer (public)
 
+## 2026-09-27 — the class-aware payload cap (`049a583`): HOSTED-ONLY may carry 16 MiB; the public reader's 1 MiB untrusted bound is UNCHANGED
+
+The specialist vessels (riir-train minter → riir-instinct hosted lane) carry i8
+weights far larger than the genome-era ceiling — banking77 is ~9.6 MiB, five of
+the six winners exceed 1 MiB — and the cap exists to bound hostile inputs, not
+to size artifact classes. The two classes read on two different trust surfaces,
+so the bound is per-class:
+
+- **`peek()`** reads the class from the header it just parsed (the class bit is
+  IN the signed header, before any payload work), so a HOSTED-ONLY vessel may
+  carry up to `MAX_HOSTED_PAYLOAD` (16 MiB, ~1.6× headroom over banking77)
+  while PUBLIC-RELEASE stays at `MAX_PAYLOAD` (1 MiB). A size legal for hosted
+  is still refused the moment the header says public.
+- **`open()`** reads the 132-byte prefix FIRST and refuses a file DECLARING the
+  hosted class before any payload byte (`HostedOnlyPath` — a structural fact
+  about the bytes, pre-auth by construction; the authenticated `HostedOnly`
+  refusal and its only-said-about-authentic-vessels law are untouched). The
+  untrusted read path's allocation bound therefore stays 1 MiB even though
+  hosted vessels are far larger; reflexer-wasm never loosens.
+- Format stays v1, layout unchanged; no encoder for class 1 exists (unchanged
+  by design). Tests (+5, forged payload_len — no big fixtures): hosted ~10 MB
+  admits at peek while decode still refuses; hosted 16 MiB+1 refused; public
+  1 MiB+1 refused even though hosted-legal + exactly-1-MiB public admitted;
+  open refuses declared-hosted at the prefix with a truncated file. Workspace
+  58 passed / 0 failed; clippy clean.
+- Verdict-reviewed (2 rounds): the single-cap raise was REVISEd to this
+  class-aware shape — the public reader is where untrusted input actually
+  arrives; raising its bound to serve the private lane gets the risk backwards.
+  Consumer side: riir-instinct serves banking77 as one 10 MB vessel
+  (`source: Vessel`); the cap-pin gate is instinct `f2fd12a`.
+
 ## 2026-09-25 — pre-birth
 
 - Design closed (reviewed; three negotiation rounds + filing checks). Owner
