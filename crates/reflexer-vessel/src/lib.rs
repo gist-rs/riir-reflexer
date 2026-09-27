@@ -77,10 +77,20 @@ pub const HEADER_LEN: usize = 68;
 pub const SIG_LEN: usize = 64;
 /// magic..payload start.
 pub const PREFIX_LEN: usize = HEADER_LEN + SIG_LEN;
-/// Payload ceiling — refuse larger before any allocation-heavy work. A
-/// genome line is hundreds of bytes; 1 MiB is generous by orders of
-/// magnitude and bounds hostile inputs.
+/// Payload ceiling for PUBLIC-RELEASE vessels — refuse larger before any
+/// allocation-heavy work. A genome line is hundreds of bytes; 1 MiB is
+/// generous by orders of magnitude and bounds hostile inputs on the
+/// UNTRUSTED read paths (reflexer-wasm in a browser, `open` on any file
+/// handed to this crate).
 pub const MAX_PAYLOAD: usize = 1 << 20;
+/// Payload ceiling for HOSTED-ONLY vessels — the class-aware half of the
+/// hostile-input bound. Hosted vessels carry i8 specialist weights
+/// (banking77 is ~9.6 MiB; 16 MiB leaves ~1.6x headroom), and they are
+/// only ever read on controlled hardware from our own image — the
+/// untrusted-path bound above does not move. The class bit lives in the
+/// SIGNED header, which [`peek`] parses before any payload allocation,
+/// so the right cap is picked before a byte of payload work.
+pub const MAX_HOSTED_PAYLOAD: usize = 1 << 24;
 
 // ── class ────────────────────────────────────────────────────────────────
 
@@ -184,6 +194,13 @@ pub enum VesselError {
     /// Authentic signature, HOSTED-ONLY class — this hardware class never
     /// opens it (fail-closed; no decryption exists here).
     HostedOnly,
+    /// The file's header DECLARES the hosted-only class — refused at the
+    /// prefix, before any payload byte is read ([`open`]'s bound stays
+    /// the public cap). Unlike [`VesselError::HostedOnly`] this is said
+    /// BEFORE the signature is verified: it is a structural fact about
+    /// the bytes (the class bit is right there in the header), never an
+    /// authenticity claim about what the file is.
+    HostedOnlyPath,
     /// key-id is not in the pin table.
     UnknownKey(u32),
     /// key-id is revoked — a once-valid minting key that must never open
@@ -210,6 +227,10 @@ impl fmt::Display for VesselError {
             E::PayloadTooLarge { len, cap } => write!(f, "payload {len} B exceeds cap {cap} B"),
             E::HostedOnly => write!(
                 f, "hosted-only artifact — refused on uncontrolled hardware (fail-closed)"
+            ),
+            E::HostedOnlyPath => write!(
+                f, "file declares the hosted-only class — refused before reading the payload \
+                    (hosted vessels open only on the hosted lane)"
             ),
             E::UnknownKey(k) => write!(f, "key-id {k} is not pinned (fail-closed)"),
             E::RevokedKey(k) => write!(f, "key-id {k} is REVOKED (fail-closed)"),
@@ -319,8 +340,17 @@ pub fn peek(buf: &[u8]) -> Result<(Header, [u8; SIG_LEN]), VesselError> {
         return Err(VesselError::Truncated { len: buf.len() });
     }
     let header = Header::from_bytes(&buf[0..HEADER_LEN])?;
-    if header.payload_len > MAX_PAYLOAD as u64 {
-        return Err(VesselError::PayloadTooLarge { len: header.payload_len, cap: MAX_PAYLOAD });
+    // The class-aware cap: the class bit is IN the header just parsed, so
+    // the bound is picked before any payload work. A HOSTED-ONLY vessel
+    // may carry up to [`MAX_HOSTED_PAYLOAD`] (specialist weights); the
+    // PUBLIC-RELEASE bound stays [`MAX_PAYLOAD`] — a size legal for a
+    // hosted vessel is still refused here when the header says public.
+    let cap = match header.class {
+        Class::HostedOnly => MAX_HOSTED_PAYLOAD,
+        Class::PublicRelease => MAX_PAYLOAD,
+    };
+    if header.payload_len > cap as u64 {
+        return Err(VesselError::PayloadTooLarge { len: header.payload_len, cap });
     }
     let actual = (buf.len() - PREFIX_LEN) as u64;
     if header.payload_len != actual {
@@ -480,6 +510,13 @@ pub fn decode(buf: &[u8], pins: &PinTable) -> Result<VerifiedVessel, VesselError
 /// `take(cap+1)` read that can never allocate past the ceiling even if
 /// the file grows mid-flight — no stat-then-read window at all. A FIFO or
 /// device on the vessel path is refused, not hung on.
+///
+/// The prefix is read FIRST and the class checked BEFORE the payload
+/// read: a file declaring the hosted-only class is refused at 132 bytes
+/// ([`VesselError::HostedOnlyPath`], a structural fact, never an
+/// authenticity claim — [`decode`]'s authenticated [`VesselError::HostedOnly`
+/// refusal keeps its own law), so this path's allocation bound stays the
+/// PUBLIC cap even though hosted vessels may be far larger.
 pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError> {
     use std::io::Read as _;
     // PRE-open regular-file check: on Unix, File::open on a FIFO blocks
@@ -496,7 +533,7 @@ pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError>
             path.display()
         )));
     }
-    let file = std::fs::File::open(path).map_err(|e| VesselError::Io(e.to_string()))?;
+    let mut file = std::fs::File::open(path).map_err(|e| VesselError::Io(e.to_string()))?;
     if !file
         .metadata()
         .map_err(|e| VesselError::Io(e.to_string()))?
@@ -507,8 +544,22 @@ pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError>
             path.display()
         )));
     }
+    // The prefix first: magic + header + signature — enough to learn the
+    // declared class and refuse the hosted shape without reading payload.
+    let mut prefix = vec![0u8; PREFIX_LEN];
+    file.read_exact(&mut prefix)
+        .map_err(|e| VesselError::Io(e.to_string()))?;
+    // A structural parse only — errors here are the ordinary truncated /
+    // bad-magic class; the signature check happens later in `decode`.
+    if prefix[0..MAGIC.len()] != MAGIC {
+        return Err(VesselError::BadMagic);
+    }
+    let header = Header::from_bytes(&prefix[0..HEADER_LEN])?;
+    if header.class == Class::HostedOnly {
+        return Err(VesselError::HostedOnlyPath);
+    }
     let cap = PREFIX_LEN + MAX_PAYLOAD;
-    let mut buf = Vec::new();
+    let mut buf = prefix;
     file.take(cap as u64 + 1)
         .read_to_end(&mut buf)
         .map_err(|e| VesselError::Io(e.to_string()))?;
@@ -698,6 +749,111 @@ mod tests {
             decode(&v, &test_pins()),
             Err(VesselError::PayloadTooLarge { .. })
         ));
+    }
+
+    // ── the class-aware caps (specialist vessels are HOSTED-ONLY and far
+    // larger than the genome-era ceiling; the public bound must not move) ──
+
+    /// A forged (unsigned) header is enough for the CAP checks — peek
+    /// makes no authenticity claim.
+    fn forged(class: Class, payload_len: u64) -> Vec<u8> {
+        let header = Header {
+            format_version: FORMAT_VERSION,
+            class,
+            key_id: 1,
+            artifact_version: 1,
+            parent_commitment: [0; 32],
+            payload_len,
+        };
+        let mut v = header.to_bytes().to_vec();
+        v.extend_from_slice(&[0u8; SIG_LEN]);
+        v
+    }
+
+    #[test]
+    fn hosted_cap_admits_specialist_sized_payloads_at_peek() {
+        // ~10 MB (the banking77 winner's class) passes the HOSTED cap.
+        // No 10 MB buffer is allocated — payload_len is forged and the
+        // PayloadLenMismatch check is what would fire on a real file; a
+        // short buffer with a matching forged len would pass peek fully.
+        let len = 10 * 1024 * 1024;
+        let mut v = forged(Class::HostedOnly, len as u64);
+        v.resize(PREFIX_LEN + len, 0);
+        let (header, _) = peek(&v).expect("hosted ~10 MB passes the cap at peek");
+        assert_eq!(header.class, Class::HostedOnly);
+        // …and decode STILL refuses the class (authenticity first — the
+        // dummy signature cannot verify).
+        assert_eq!(decode(&v, &test_pins()), Err(VesselError::BadSignature));
+    }
+
+    #[test]
+    fn hosted_cap_ceiling_refused() {
+        let v = forged(Class::HostedOnly, MAX_HOSTED_PAYLOAD as u64 + 1);
+        assert!(matches!(
+            peek(&v),
+            Err(VesselError::PayloadTooLarge { cap: MAX_HOSTED_PAYLOAD, .. })
+        ));
+    }
+
+    #[test]
+    fn public_cap_stays_at_one_mib_even_for_hosted_legal_sizes() {
+        // THE test that proves the public path was not loosened: 1 MiB + 1
+        // is legal for a hosted vessel but refused the moment the header
+        // says public-release.
+        let v = forged(Class::PublicRelease, MAX_PAYLOAD as u64 + 1);
+        assert!(matches!(
+            peek(&v),
+            Err(VesselError::PayloadTooLarge { cap: MAX_PAYLOAD, .. })
+        ));
+        // and exactly AT the public cap, peek still admits it (the cap is
+        // inclusive — one real 1 MiB buffer, the only large allocation in
+        // this suite).
+        let mut at_cap = forged(Class::PublicRelease, MAX_PAYLOAD as u64);
+        at_cap.resize(PREFIX_LEN + MAX_PAYLOAD, 0);
+        assert!(peek(&at_cap).is_ok(), "exactly {MAX_PAYLOAD} B is legal public");
+    }
+
+    #[test]
+    fn open_refuses_declared_hosted_at_the_prefix_without_reading_payload() {
+        // A file whose header DECLARES hosted-only: refused at 132 bytes
+        // (HostedOnlyPath — a structural fact, pre-auth), even though its
+        // payload_len is far over the public bound. No big file is written:
+        // the payload is TRUNCATED, which open must never reach.
+        let dir = std::env::temp_dir().join(format!(
+            "reflexer-vessel-hosted-prefix-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("hosted.vessel");
+        let mut v = forged(Class::HostedOnly, MAX_HOSTED_PAYLOAD as u64);
+        v.truncate(PREFIX_LEN + 16); // truncated payload — open must refuse BEFORE caring
+        std::fs::write(&p, &v).unwrap();
+        assert_eq!(
+            open(&p, &test_pins()),
+            Err(VesselError::HostedOnlyPath),
+            "the prefix refusal must fire before any payload read"
+        );
+        let _ = std::fs::remove_file(&p);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn open_still_refuses_authentic_hosted_only_after_signature() {
+        // The pre-existing law, intact: a fully AUTHENTIC hosted vessel
+        // (the crate's own test arm writes class 1) that fits the public
+        // bound still reaches decode's authenticated refusal — open's
+        // prefix check refuses the DECLARED class first, so here the file
+        // is decoded directly to pin the auth-order law on the buffer path.
+        let header = Header {
+            format_version: FORMAT_VERSION,
+            class: Class::HostedOnly,
+            key_id: 1,
+            artifact_version: 9,
+            parent_commitment: [0; 32],
+            payload_len: payload().len() as u64,
+        };
+        let hosted = encode_raw(&test_key(), header, &payload());
+        assert_eq!(decode(&hosted, &test_pins()), Err(VesselError::HostedOnly));
     }
 
     // ── trust refusals ────────────────────────────────────────────────────
