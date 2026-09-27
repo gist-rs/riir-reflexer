@@ -4,8 +4,33 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 publish = false
-description = "The public decision-artifact vessel format: serialize/commit/verify (read side), two-class header, key-id rotation"
+description = "The public decision-artifact vessel format: serialize/commit/verify, two-class header, key-id rotation; capability features gate which reader classes compile"
 
 [dependencies]
 blake3 = "1"
 ed25519-dalek = "2"
+
+[features]
+# The reader CAPABILITY axis (instinct Proposal 001 T3 — A1: bytes are
+# runtime, capability is compile-time). Each feature compiles the reader
+# path for its class; a class whose reader is not compiled refuses
+# fail-closed ([`VesselError::ClassNotReadable`]) — never a partial read.
+# BOTH default-on: the default build is behavior-identical to the
+# pre-feature crate, so every existing consumer (reflexer bin, reflexer
+# wasm, riir-reflex, riir-instinct) builds and behaves unchanged.
+#
+# - `vessel_public_read`: the PUBLIC-RELEASE reader path (the 1 MiB cap
+#   arm at `peek`, the authenticated Ok path at `decode`). reflex (public)
+#   selects this one.
+# - `vessel_hosted_read`: the HOSTED-ONLY reader path (the 16 MiB cap arm
+#   at `peek`; the authenticated post-signature class refusal at
+#   `decode`). The structural refusals (`open`'s `HostedOnlyPath` prefix
+#   check, `decode`'s `HostedOnly`) stay UNCONDITIONAL — they are the
+#   class's refusal behavior, not a reader capability.
+#
+# The writer side is NOT gated: the public-class writer is this repo's
+# product surface (`writer` + the `reflexer sign` subcommand); no path in
+# this repo writes class 1 (HOSTED-ONLY) — that law is structural.
+default = ["vessel_public_read", "vessel_hosted_read"]
+vessel_public_read = []
+vessel_hosted_read = []

@@ -7,8 +7,24 @@
 //! Usage:
 //! ```text
 //! reflexer [--record <path.jsonl>] [--vessel <path> [--vessel-pubkey <hex64>]
-//!          [--vessel-force-downgrade]] [--vessel-print <path>] [--version]
+//!          [--vessel-force-downgrade]] [--vessel-print <path>]
+//!          | sign --in <payload> --out <vessel> --key-id <u32>
+//!                 [--artifact-version <u64>=1] [--parent <blake3-hex>]
+//!                 [--key <hex64> | --key-file <path>]   (env REFLEXER_SIGN_KEY)
+//!          | --version
 //! ```
+//!
+//! `sign` (instinct Proposal 001 T4 — the public FORMAT repo owns the
+//! public-class writer): mints one PUBLIC-RELEASE vessel from a payload
+//! file. Fail-closed without a key — the key resolves from `--key`
+//! (64-hex seed), then `--key-file` (64-hex text or 32 raw bytes), then
+//! the `REFLEXER_SIGN_KEY` env. The 1 MiB public cap is enforced at
+//! write time. On success it prints the vessel's blake3 commitment (the
+//! pin consumers record) AND the verifying key hex (the trust anchor the
+//! consumer side pins, e.g. `RIIR_REFLEX_HEADS_PUBKEY`) — the loop
+//! closes with zero extra crypto tooling. The output is re-verified
+//! against a wildcard pin of its own key before it is written: a minter
+//! that cannot open its own output has no business shipping it.
 //!
 //! Vessels (Plan 002 / P3): `--vessel` boots the engine from a signed
 //! decision artifact instead of the compiled substrate — verify (strict
@@ -33,6 +49,10 @@ fn main() {
             "reflexer {} proto={PROTO} genome={GENOME_ID}",
             env!("CARGO_PKG_VERSION")
         );
+        return;
+    }
+    if args.get(1).map(String::as_str) == Some("sign") {
+        cmd_sign(&args[2..]);
         return;
     }
     let record_path = flag_value(&args, "--record");
@@ -270,4 +290,124 @@ fn flag_value(args: &[String], flag: &str) -> Option<String> {
 fn write_line(out: &mut impl Write, json: &str) {
     let _ = writeln!(out, "{json}");
     let _ = out.flush();
+}
+
+/// `reflexer sign` — mint one PUBLIC-RELEASE vessel (instinct Proposal
+/// 001 T4). Fail-closed on every axis: no key → exit 2 naming all three
+/// key sources; an over-cap payload → exit 2 with the bound; a
+/// re-verification failure of the freshly minted bytes → exit 1 (never
+/// write an output this crate cannot open).
+fn cmd_sign(args: &[String]) {
+    let Some(input) = flag_value(args, "--in") else {
+        eprintln!("reflexer sign: --in <payload-file> is required");
+        std::process::exit(2);
+    };
+    let Some(out_path) = flag_value(args, "--out") else {
+        eprintln!("reflexer sign: --out <vessel-path> is required");
+        std::process::exit(2);
+    };
+    let key_id: u32 = match flag_value(args, "--key-id") {
+        Some(v) => v.parse().unwrap_or_else(|_| {
+            eprintln!("reflexer sign: --key-id must be a u32, got {v:?}");
+            std::process::exit(2);
+        }),
+        None => {
+            eprintln!("reflexer sign: --key-id <u32> is required (the PinTable identity of the minting key)");
+            std::process::exit(2);
+        }
+    };
+    let artifact_version: u64 = match flag_value(args, "--artifact-version") {
+        Some(v) => v.parse().unwrap_or_else(|_| {
+            eprintln!("reflexer sign: --artifact-version must be a u64, got {v:?}");
+            std::process::exit(2);
+        }),
+        None => 1,
+    };
+    let mut parent = [0u8; 32];
+    if let Some(hex) = flag_value(args, "--parent") {
+        parent = hex_decode32(hex.trim()).unwrap_or_else(|e| {
+            eprintln!("reflexer sign: --parent: {e}");
+            std::process::exit(2);
+        });
+    }
+
+    // The key: flag → key-file → env. Fail-closed without one.
+    let key = if let Some(hex) = flag_value(args, "--key") {
+        vessel::writer::signing_key_from_seed_hex(hex.trim())
+    } else if let Some(path) = flag_value(args, "--key-file") {
+        vessel::writer::signing_key_from_file(std::path::Path::new(&path))
+    } else if let Ok(hex) = std::env::var("REFLEXER_SIGN_KEY") {
+        vessel::writer::signing_key_from_seed_hex(hex.trim())
+    } else {
+        Err("no signing key: pass --key <64-hex-seed>, --key-file <path> \
+            (64-hex text or 32 raw bytes), or set REFLEXER_SIGN_KEY"
+            .to_string())
+    }
+    .unwrap_or_else(|e| {
+        eprintln!("reflexer sign: {e}");
+        std::process::exit(2);
+    });
+
+    // Bound BEFORE the read: the public cap is a write-time law; a
+    // hostile-sized --in is refused from metadata, never loaded.
+    let input_path = std::path::Path::new(&input);
+    let meta = std::fs::metadata(input_path).unwrap_or_else(|e| {
+        eprintln!("reflexer sign: --in {}: {e}", input);
+        std::process::exit(2);
+    });
+    if !meta.is_file() || meta.len() > vessel::MAX_PAYLOAD as u64 {
+        eprintln!(
+            "reflexer sign: payload {} B exceeds the public cap {} B (--in must be a regular file)",
+            meta.len(),
+            vessel::MAX_PAYLOAD
+        );
+        std::process::exit(2);
+    }
+    let payload = std::fs::read(input_path).unwrap_or_else(|e| {
+        eprintln!("reflexer sign: read {}: {e}", input);
+        std::process::exit(2);
+    });
+
+    let minted = vessel::writer::sign_public(&key, key_id, artifact_version, parent, &payload)
+        .unwrap_or_else(|e| {
+            eprintln!("reflexer sign: mint refused: {e}");
+            std::process::exit(2);
+        });
+    // The mint-side round-trip: verify the freshly minted bytes against
+    // a wildcard pin of their own key BEFORE writing anything.
+    let pins = vessel::PinTable::empty().with_wildcard(key.verifying_key());
+    let verified = vessel::writer::verify_roundtrip(&minted.bytes, &pins).unwrap_or_else(|e| {
+        eprintln!("reflexer sign: minted vessel failed re-verification ({e}) — nothing written");
+        std::process::exit(1);
+    });
+    assert_eq!(verified.commitment(), minted.commitment, "re-verify commitment drift");
+    if let Some(parent_dir) = std::path::Path::new(&out_path).parent()
+        && !parent_dir.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent_dir).unwrap_or_else(|e| {
+            eprintln!("reflexer sign: create {}: {e}", parent_dir.display());
+            std::process::exit(2);
+        });
+    }
+    std::fs::write(&out_path, &minted.bytes).unwrap_or_else(|e| {
+        eprintln!("reflexer sign: write {out_path}: {e}");
+        std::process::exit(1);
+    });
+    println!(
+        "{{\"out\":{:?},\"key_id\":{},\"artifact_version\":{},\"commitment\":{:?},\"verifying_key\":{:?},\"payload_len\":{},\"vessel_len\":{}}}",
+        out_path,
+        key_id,
+        artifact_version,
+        hex32(&minted.commitment),
+        vessel::writer::verifying_key_hex(&key),
+        payload.len(),
+        minted.bytes.len(),
+    );
+    eprintln!(
+        "reflexer sign: wrote {} ({} B payload → {} B vessel); pin the commitment beside the artifact, \
+         and the verifying key as the consumer-side trust anchor",
+        out_path,
+        payload.len(),
+        minted.bytes.len()
+    );
 }

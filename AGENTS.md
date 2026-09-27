@@ -67,6 +67,34 @@ HISTORY.md. Next: P4/P5 — hosted serving + deployment, private homes
 (riir-dapps / riir-deployer); this repo's part ends at the wire and the
 format.
 
+**P3.1 — the PUBLIC-RELEASE writer + the reader-capability features
+(instinct Proposal 001 T3+T4, 2026-09-27):**
+
+- **`writer` module + `reflexer sign`** — the public FORMAT repo owns
+  the public-class writer (the owner's design decision: riir-train
+  `vessel_mint` stays HOSTED-class only; no writer for class 1 exists
+  here). `writer::sign_public` is the Result-based mint API (the 1 MiB
+  public cap enforced AT WRITE TIME as `PayloadTooLarge`, never an
+  assert) returning the vessel bytes + the blake3 commitment; key
+  handling is fail-closed (`--key <64-hex-seed>` / `--key-file`
+  (64-hex text or 32 raw bytes) / env `REFLEXER_SIGN_KEY`). The
+  subcommand re-verifies its own output before writing (a wildcard pin
+  of its own key) and prints the commitment + the VERIFYING key hex —
+  the consumer-side trust anchor (e.g. reflex's
+  `RIIR_REFLEX_HEADS_PUBKEY`), so the loop closes with no extra crypto
+  tooling. Minting is deterministic (same inputs → byte-identical
+  vessels — re-minting moves no pin).
+- **`vessel_public_read` / `vessel_hosted_read`** — the reader
+  capability axis (A1: bytes are runtime; capability is
+  compile-time). Both DEFAULT-ON: the default build is behavior-identical
+  for every existing consumer. A class whose reader is not compiled
+  refuses `ClassNotReadable` (at `peek` structurally; `decode`
+  post-signature). The class REFUSALS are not capabilities:
+  `open`'s `HostedOnlyPath` prefix check and `decode`'s authenticated
+  `HostedOnly` refusal stay UNCONDITIONAL. reflex (public) selects
+  `vessel_public_read` only — the hosted reader never compiles into the
+  public consumer.
+
 ## Build Commands
 
 ```sh

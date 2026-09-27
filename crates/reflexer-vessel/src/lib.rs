@@ -55,14 +55,34 @@
 //! - **Unknown anything fails closed:** magic, format version, flag bits,
 //!   key-id, class, lineage — an unreadable vessel is a refused vessel.
 //!
-//! Minting/production tooling for real artifacts lives in riir-train
-//! (private, forever). This crate's [`encode_public`] exists so the public
-//! can mint vessels for THEIR OWN genomes on the same carrier — the moat
-//! is the artifacts and the improvement loop, not the box.
+//! Minting/production tooling for the PRIVATE artifacts lives in riir-train
+//! (private, forever — no writer for class 1 exists anywhere in this
+//! repo). The PUBLIC-RELEASE writer ships HERE ([`writer`] + the `reflexer
+//! sign` subcommand): the public format repo owns the public-class writer,
+//! so the public can mint vessels for THEIR OWN artifacts on the same
+//! carrier — the moat is the artifacts and the improvement loop, not the
+//! box.
+//!
+//! ## Reader capability features (A1: bytes are runtime; capability is
+//! compile-time)
+//!
+//! `vessel_public_read` / `vessel_hosted_read` (both DEFAULT-ON) compile
+//! the reader path for their class. A class whose reader is not compiled
+//! refuses [`VesselError::ClassNotReadable`] — at `peek` (structural: the
+//! class bit is in the signed header) and post-signature at `decode`. The
+//! class REFUSALS are not capabilities: `open`'s `HostedOnlyPath` prefix
+//! check and `decode`'s authenticated `HostedOnly` refusal stay
+//! unconditional.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use std::fmt;
 use std::path::Path;
+
+/// Re-exported so consumers can name the key types WITHOUT taking their
+/// own ed25519-dalek dependency (one version authority: this crate owns
+/// the format, and its signature key type is part of that format's
+/// surface — `vessel::ed25519_dalek::SigningKey`).
+pub use ed25519_dalek;
 
 /// File magic — a vessel starts with these 8 bytes.
 pub const MAGIC: [u8; 8] = *b"RFLEXVSL";
@@ -209,6 +229,12 @@ pub enum VesselError {
     /// Signature mismatch (any byte of the signed region changed), or a
     /// non-canonical / weak-key signature (verify_strict).
     BadSignature,
+    /// No reader is COMPILED for this class (the `vessel_public_read` /
+    /// `vessel_hosted_read` capability features) — refused fail-closed.
+    /// Said at `peek` as a STRUCTURAL fact (the class bit is in the signed
+    /// header, before any payload work) and never spoofed by a forged
+    /// file; `decode` reaches it only post-signature.
+    ClassNotReadable { class: Class },
 }
 
 impl fmt::Display for VesselError {
@@ -235,6 +261,11 @@ impl fmt::Display for VesselError {
             E::UnknownKey(k) => write!(f, "key-id {k} is not pinned (fail-closed)"),
             E::RevokedKey(k) => write!(f, "key-id {k} is REVOKED (fail-closed)"),
             E::BadSignature => write!(f, "signature failed strict verification"),
+            E::ClassNotReadable { class } => write!(
+                f,
+                "no compiled reader for the {} class (capability feature off) — refused fail-closed",
+                class.as_str()
+            ),
         }
     }
 }
@@ -340,6 +371,18 @@ pub fn peek(buf: &[u8]) -> Result<(Header, [u8; SIG_LEN]), VesselError> {
         return Err(VesselError::Truncated { len: buf.len() });
     }
     let header = Header::from_bytes(&buf[0..HEADER_LEN])?;
+    // The reader-capability gate (compile-time, both features default-on):
+    // a class whose reader this build did not compile refuses here — a
+    // STRUCTURAL fact (the class bit is in the signed header), before any
+    // payload byte is read, never an authenticity claim.
+    #[cfg(not(feature = "vessel_hosted_read"))]
+    if header.class == Class::HostedOnly {
+        return Err(VesselError::ClassNotReadable { class: header.class });
+    }
+    #[cfg(not(feature = "vessel_public_read"))]
+    if header.class == Class::PublicRelease {
+        return Err(VesselError::ClassNotReadable { class: header.class });
+    }
     // The class-aware cap: the class bit is IN the header just parsed, so
     // the bound is picked before any payload work. A HOSTED-ONLY vessel
     // may carry up to [`MAX_HOSTED_PAYLOAD`] (specialist weights); the
@@ -498,6 +541,15 @@ pub fn decode(buf: &[u8], pins: &PinTable) -> Result<VerifiedVessel, VesselError
     let sig = Signature::from_bytes(&sig_bytes);
     key.verify_strict(&signed_message(buf), &sig)
         .map_err(|_| VesselError::BadSignature)?;
+    // The reader-capability gate, post-signature (an authentic public
+    // vessel still cannot be READ by a build that compiled no public
+    // reader). The hosted refusal below is NOT gated: it is the class's
+    // own refusal behavior, and by the time it runs the signature is
+    // verified — the message cannot be spoofed by a forged file.
+    #[cfg(not(feature = "vessel_public_read"))]
+    if header.class == Class::PublicRelease {
+        return Err(VesselError::ClassNotReadable { class: header.class });
+    }
     if header.class == Class::HostedOnly {
         return Err(VesselError::HostedOnly);
     }
@@ -569,13 +621,20 @@ pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError>
     decode(&buf, pins)
 }
 
-// ── encode (the PUBLIC class only) ───────────────────────────────────────
+// ── encode (the PUBLIC class only) ──────────────────────────────────
+
+/// The PUBLIC-RELEASE writer — key handling, the Result-based mint API,
+/// and the round-trip/tamper gates. The FIRST writer in this repo; no
+/// path here writes class 1 (HOSTED-ONLY minting stays riir-train).
+pub mod writer;
 
 /// Mint a PUBLIC-RELEASE vessel. There is deliberately NO public encoder
 /// for HOSTED-ONLY: no path in this repo writes class 1, ever (Plan 002
 /// T3). `parent` is the parent vessel's [`VerifiedVessel::commitment`]
 /// (zeros for genesis); `artifact_version` must be strictly greater than
 /// the parent's — minting-side lineage discipline is the minter's job.
+/// Delegates to [`writer::sign_public`] (one implementation; the assert
+/// on the cap became its [`VesselError::PayloadTooLarge`] arm).
 pub fn encode_public(
     key: &SigningKey,
     key_id: u32,
@@ -583,19 +642,9 @@ pub fn encode_public(
     parent: [u8; 32],
     payload: &[u8],
 ) -> Vec<u8> {
-    assert!(
-        payload.len() <= MAX_PAYLOAD,
-        "payload {} B exceeds cap {MAX_PAYLOAD} B",
-        payload.len()
-    );
-    encode_raw(key, Header {
-        format_version: FORMAT_VERSION,
-        class: Class::PublicRelease,
-        key_id,
-        artifact_version,
-        parent_commitment: parent,
-        payload_len: payload.len() as u64,
-    }, payload)
+    writer::sign_public(key, key_id, artifact_version, parent, payload)
+        .expect("payload within the public cap")
+        .bytes
 }
 
 /// The raw encoder — `pub(crate)` so ONLY this crate's own hostile-forgery
@@ -635,17 +684,39 @@ mod tests {
         PinTable::with_key(1, test_key().verifying_key())
     }
 
+    #[cfg(any(feature = "vessel_public_read", feature = "vessel_hosted_read"))]
     fn payload() -> Vec<u8> {
         // a genome-line-shaped payload (content irrelevant at this layer)
         b"tetris-rulebook-v1 en=0xffff d=4 b=8 sh=1.0 dh=0 w=1;2;3".to_vec()
     }
 
+    #[cfg(feature = "vessel_public_read")]
     fn signed_vessel() -> Vec<u8> {
         encode_public(&test_key(), 1, 5, [0u8; 32], &payload())
     }
 
+    /// A header-plus-zero-signature fixture for the PRE-signature refusals
+    /// (magic, format version, flags, truncation — all fail before any key
+    /// or class work, so no valid signature is needed and this helper stays
+    /// ungated across the reader-capability postures).
+    fn structural_public_vessel() -> Vec<u8> {
+        let header = Header {
+            format_version: FORMAT_VERSION,
+            class: Class::PublicRelease,
+            key_id: 1,
+            artifact_version: 5,
+            parent_commitment: [0u8; 32],
+            payload_len: 16,
+        };
+        let mut v = header.to_bytes().to_vec();
+        v.extend_from_slice(&[0u8; SIG_LEN]);
+        v.extend_from_slice(&[0u8; 16]);
+        v
+    }
+
     // ── happy path ────────────────────────────────────────────────────────
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn roundtrip_public_vessel() {
         let v = signed_vessel();
@@ -658,6 +729,7 @@ mod tests {
         assert_eq!(got.commitment(), commitment_of(got.header(), got.payload()));
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn commitment_covers_header_and_payload() {
         let v = signed_vessel();
@@ -672,6 +744,7 @@ mod tests {
         assert_ne!(got.commitment(), raw);
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn lineage_chaining() {
         let parent = decode(&signed_vessel(), &test_pins()).unwrap();
@@ -685,34 +758,35 @@ mod tests {
 
     #[test]
     fn bad_magic_refused() {
-        let mut v = signed_vessel();
+        let mut v = structural_public_vessel();
         v[0] = b'X';
         assert_eq!(decode(&v, &test_pins()), Err(VesselError::BadMagic));
     }
 
     #[test]
     fn unknown_format_version_refused() {
-        let mut v = signed_vessel();
+        let mut v = structural_public_vessel();
         v[8..12].copy_from_slice(&2u32.to_le_bytes());
         assert_eq!(decode(&v, &test_pins()), Err(VesselError::UnknownFormatVersion(2)));
     }
 
     #[test]
     fn unknown_flag_bits_refused() {
-        let mut v = signed_vessel();
+        let mut v = structural_public_vessel();
         v[12..16].copy_from_slice(&2u32.to_le_bytes()); // bit1 set
         assert_eq!(decode(&v, &test_pins()), Err(VesselError::UnknownFlags(2)));
     }
 
     #[test]
     fn every_truncation_length_refused() {
-        let v = signed_vessel();
+        let v = structural_public_vessel();
         for len in 0..PREFIX_LEN {
             let err = decode(&v[..len], &test_pins());
             assert!(matches!(err, Err(VesselError::Truncated { .. })), "len {len}: {err:?}");
         }
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn payload_len_mismatch_refused_both_ways() {
         let v = signed_vessel();
@@ -733,6 +807,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn oversized_payload_refused_before_allocation() {
         let header = Header {
@@ -756,6 +831,7 @@ mod tests {
 
     /// A forged (unsigned) header is enough for the CAP checks — peek
     /// makes no authenticity claim.
+    #[cfg(any(feature = "vessel_public_read", feature = "vessel_hosted_read"))]
     fn forged(class: Class, payload_len: u64) -> Vec<u8> {
         let header = Header {
             format_version: FORMAT_VERSION,
@@ -770,6 +846,7 @@ mod tests {
         v
     }
 
+    #[cfg(feature = "vessel_hosted_read")]
     #[test]
     fn hosted_cap_admits_specialist_sized_payloads_at_peek() {
         // ~10 MB (the banking77 winner's class) passes the HOSTED cap.
@@ -786,6 +863,7 @@ mod tests {
         assert_eq!(decode(&v, &test_pins()), Err(VesselError::BadSignature));
     }
 
+    #[cfg(feature = "vessel_hosted_read")]
     #[test]
     fn hosted_cap_ceiling_refused() {
         let v = forged(Class::HostedOnly, MAX_HOSTED_PAYLOAD as u64 + 1);
@@ -795,6 +873,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn public_cap_stays_at_one_mib_even_for_hosted_legal_sizes() {
         // THE test that proves the public path was not loosened: 1 MiB + 1
@@ -819,13 +898,24 @@ mod tests {
         // (HostedOnlyPath — a structural fact, pre-auth), even though its
         // payload_len is far over the public bound. No big file is written:
         // the payload is TRUNCATED, which open must never reach.
+        // (The header is forged inline — this refusal is unconditional, so
+        // the test runs in every reader-capability posture.)
+        let header = Header {
+            format_version: FORMAT_VERSION,
+            class: Class::HostedOnly,
+            key_id: 1,
+            artifact_version: 1,
+            parent_commitment: [0; 32],
+            payload_len: MAX_HOSTED_PAYLOAD as u64,
+        };
+        let mut v = header.to_bytes().to_vec();
+        v.extend_from_slice(&[0u8; SIG_LEN]);
         let dir = std::env::temp_dir().join(format!(
             "reflexer-vessel-hosted-prefix-{}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("hosted.vessel");
-        let mut v = forged(Class::HostedOnly, MAX_HOSTED_PAYLOAD as u64);
         v.truncate(PREFIX_LEN + 16); // truncated payload — open must refuse BEFORE caring
         std::fs::write(&p, &v).unwrap();
         assert_eq!(
@@ -837,6 +927,7 @@ mod tests {
         let _ = std::fs::remove_dir(&dir);
     }
 
+    #[cfg(feature = "vessel_hosted_read")]
     #[test]
     fn open_still_refuses_authentic_hosted_only_after_signature() {
         // The pre-existing law, intact: a fully AUTHENTIC hosted vessel
@@ -858,6 +949,7 @@ mod tests {
 
     // ── trust refusals ────────────────────────────────────────────────────
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn unknown_key_refused() {
         let v = signed_vessel();
@@ -866,6 +958,7 @@ mod tests {
         assert_eq!(decode(&v, &PinTable::empty()), Err(VesselError::UnknownKey(1)));
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn revoked_key_refused() {
         let pins = test_pins().revoke(1);
@@ -873,6 +966,7 @@ mod tests {
         assert_eq!(decode(&v, &pins), Err(VesselError::RevokedKey(1)));
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn wildcard_operator_pin_verifies_any_key_id() {
         let v = signed_vessel();
@@ -880,6 +974,7 @@ mod tests {
         assert!(decode(&v, &pins).is_ok());
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn any_byte_tamper_closes_the_door() {
         let v = signed_vessel();
@@ -908,6 +1003,7 @@ mod tests {
 
     // ── the two-class law ─────────────────────────────────────────────────
 
+    #[cfg(feature = "vessel_hosted_read")]
     #[test]
     fn hosted_only_refused_and_only_after_authenticity() {
         // forged by the crate's own test arm (pub(crate) raw encoder) —
@@ -935,10 +1031,12 @@ mod tests {
 
     // ── monotonic apply ───────────────────────────────────────────────────
 
+    #[cfg(feature = "vessel_public_read")]
     fn state(v: u64) -> ApplyState {
         ApplyState { artifact_version: v, commitment: [v as u8; 32] }
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn monotonic_gate_refuses_downgrades_and_forks() {
         let v5 = decode(&signed_vessel(), &test_pins()).unwrap(); // artifact v5
@@ -958,12 +1056,14 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "vessel_public_read")]
     fn vessel_v(version: u64) -> Vec<u8> {
         encode_public(&test_key(), 1, version, [0u8; 32], &payload())
     }
 
     // ── the rollback floor (the release-time anti-downgrade arm) ──────
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn floor_refuses_old_validly_signed_artifacts() {
         // The reviewer's exact scenario: floor at 2, an authentic v1
@@ -981,6 +1081,7 @@ mod tests {
         assert_eq!(MIN_ARTIFACT_VERSION, 0, "no artifacts shipped — the compiled floor must be 0");
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn compiled_pin_table_resolves_without_any_flag() {
         // The wiring the first-artifact change will use: raw key BYTES in a
@@ -1041,6 +1142,7 @@ mod tests {
         assert!(open(&dir, &test_pins()).is_err(), "a directory must refuse");
     }
 
+    #[cfg(feature = "vessel_public_read")]
     #[test]
     fn mutated_vessels_never_panic_and_never_open() {
         let v = signed_vessel();
@@ -1064,5 +1166,56 @@ mod tests {
                 );
             }
         }
+    }
+
+    // ── the reader-capability axis (both features default-on; these arms
+    // compile only in the OFF postures and pin the fail-closed law) ──────
+
+    #[cfg(not(feature = "vessel_public_read"))]
+    #[test]
+    fn public_reader_not_compiled_refuses_fail_closed() {
+        // A fully authentic public vessel: refused at peek (structural —
+        // the class bit is in the signed header) before any payload work,
+        // and at decode post-signature for a direct caller.
+        let p = b"genome-line-v1 no-public-reader posture".to_vec();
+        let v = encode_public(&test_key(), 1, 1, [0u8; 32], &p);
+        assert_eq!(
+            peek(&v),
+            Err(VesselError::ClassNotReadable { class: Class::PublicRelease })
+        );
+        assert_eq!(
+            decode(&v, &test_pins()),
+            Err(VesselError::ClassNotReadable { class: Class::PublicRelease })
+        );
+    }
+
+    #[cfg(not(feature = "vessel_hosted_read"))]
+    #[test]
+    fn hosted_reader_not_compiled_refuses_fail_closed() {
+        // Crafted with the crate's own test arm (no writer for class 1
+        // exists): the hosted READ path is not compiled, so peek refuses
+        // structurally — while open's UNCONDITIONAL HostedOnlyPath prefix
+        // refusal still stands (the structural refusal is not a feature).
+        let p = b"genome-line-v1 no-hosted-reader posture".to_vec();
+        let header = Header {
+            format_version: FORMAT_VERSION,
+            class: Class::HostedOnly,
+            key_id: 1,
+            artifact_version: 1,
+            parent_commitment: [0; 32],
+            payload_len: p.len() as u64,
+        };
+        let hosted = encode_raw(&test_key(), header, &p);
+        assert_eq!(
+            peek(&hosted),
+            Err(VesselError::ClassNotReadable { class: Class::HostedOnly })
+        );
+        // decode reaches the same structural refusal first (peek runs
+        // inside decode); the authenticated HostedOnly refusal is a
+        // hosted-reader-capable build's answer, not this one's.
+        assert_eq!(
+            decode(&hosted, &test_pins()),
+            Err(VesselError::ClassNotReadable { class: Class::HostedOnly })
+        );
     }
 }
