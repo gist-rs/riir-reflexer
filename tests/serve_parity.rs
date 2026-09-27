@@ -61,6 +61,11 @@ fn envelope_line_matches_the_bin_line_for_line() {
     assert_eq!(bin.len(), inputs.len(), "one envelope per request line");
     for (at, (input, bin_line)) in inputs.iter().zip(&bin).enumerate() {
         let served = envelope_line(&engine, input, at as u64 + 1);
-        assert_eq!(untimed(&served), untimed(bin_line), "line {}: {input}", at + 1);
+        assert_eq!(
+            untimed(&served),
+            untimed(bin_line),
+            "line {}: {input}",
+            at + 1
+        );
     }
 }

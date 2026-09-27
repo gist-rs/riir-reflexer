@@ -13,7 +13,7 @@ use katgpt_tetris::sim::Board;
 use reflexer::engine::Engine;
 use reflexer::lane::{BinLane, local_play_with_decisions, stats_eq, wire_play_game};
 use reflexer_vessel::{
-    self as vessel, ApplyRefusal, PinTable, CLASS_BIT_HOSTED, HEADER_LEN, SUBSTRATE,
+    self as vessel, ApplyRefusal, CLASS_BIT_HOSTED, HEADER_LEN, PinTable, SUBSTRATE,
 };
 
 fn bin() -> &'static str {
@@ -35,8 +35,10 @@ fn hex(b: &[u8]) -> String {
 fn tmp_vessel(name: &str, bytes: &[u8]) -> std::path::PathBuf {
     // pid-scoped temp path (the shared-temp law — concurrent test processes
     // never collide)
-    let p = std::env::temp_dir()
-        .join(format!("reflexer-vessel-{}-{name}.vessel", std::process::id()));
+    let p = std::env::temp_dir().join(format!(
+        "reflexer-vessel-{}-{name}.vessel",
+        std::process::id()
+    ));
     std::fs::write(&p, bytes).expect("write temp vessel");
     p
 }
@@ -79,8 +81,8 @@ fn pins() -> PinTable {
 fn g1_vessel_champion_replays_substrate_exactly() {
     let bytes = champion_vessel(1);
     let verified = vessel::decode(&bytes, &pins()).expect("verify champion vessel");
-    let engine = Engine::from_vessel_payload(verified.payload())
-        .expect("payload is the genome line");
+    let engine =
+        Engine::from_vessel_payload(verified.payload()).expect("payload is the genome line");
     let champion = Engine::champion();
     assert_eq!(
         engine.genome_id(),
@@ -107,15 +109,11 @@ fn g1_bin_from_vessel_matches_oracle_hold_and_no_hold() {
     let vessel_path = tmp_vessel("champion", &champion_vessel(1));
     let vs = vessel_path.to_str().unwrap();
     let engine = Engine::champion();
-    let mut lane = BinLane::spawn(
-        bin(),
-        &["--vessel", vs, "--vessel-pubkey", &pubkey_hex()],
-    )
-    .expect("spawn vessel bin");
+    let mut lane = BinLane::spawn(bin(), &["--vessel", vs, "--vessel-pubkey", &pubkey_hex()])
+        .expect("spawn vessel bin");
     for seed in 1..=4u64 {
         let (wire_stats, wire_decisions) =
-            wire_play_game(&mut lane, &engine, seed, 240, Board::empty(), true)
-                .expect("wire game");
+            wire_play_game(&mut lane, &engine, seed, 240, Board::empty(), true).expect("wire game");
         let (stats, decisions) =
             local_play_with_decisions(&engine, seed, 240, Board::empty(), true);
         assert_eq!(wire_decisions, decisions, "seed {seed} hold: decisions");
@@ -182,7 +180,10 @@ fn bin_refuses_unknown_key_and_missing_pubkey() {
     expect_boot_failure(
         "wrongpin",
         &champion_vessel(1),
-        &[&format!("--vessel-pubkey={}", hex(&wrong.verifying_key().to_bytes()))],
+        &[&format!(
+            "--vessel-pubkey={}",
+            hex(&wrong.verifying_key().to_bytes())
+        )],
     );
 }
 
@@ -201,15 +202,17 @@ fn bin_refuses_downgrade_and_fork_but_force_logs() {
     let mut lane = BinLane::spawn(
         bin(),
         &[
-            "--vessel", vs,
-            "--vessel-pubkey", &pubkey_hex(),
+            "--vessel",
+            vs,
+            "--vessel-pubkey",
+            &pubkey_hex(),
             "--vessel-force-downgrade",
         ],
     )
     .expect("forced boot");
     let engine = Engine::champion();
-    let (wire_stats, _) =
-        wire_play_game(&mut lane, &engine, 1, 200, Board::empty(), true).expect("serves after force");
+    let (wire_stats, _) = wire_play_game(&mut lane, &engine, 1, 200, Board::empty(), true)
+        .expect("serves after force");
     let (stats, _) = local_play_with_decisions(&engine, 1, 200, Board::empty(), true);
     assert!(stats_eq(&wire_stats, &stats));
     lane.finish().expect("clean exit");
@@ -223,8 +226,14 @@ fn monotonic_gate_refusals_are_typed() {
     let v1 = vessel::decode(&champion_vessel(1), &pins()).unwrap();
     assert!(v1.check_monotonic(&SUBSTRATE).is_ok());
     assert_eq!(
-        v1.check_monotonic(&vessel::ApplyState { artifact_version: 2, commitment: [0; 32] }),
-        Err(ApplyRefusal::OlderThanCurrent { current: 2, offered: 1 })
+        v1.check_monotonic(&vessel::ApplyState {
+            artifact_version: 2,
+            commitment: [0; 32]
+        }),
+        Err(ApplyRefusal::OlderThanCurrent {
+            current: 2,
+            offered: 1
+        })
     );
 }
 
@@ -240,7 +249,11 @@ fn vessel_print_reports_header_and_verdict() {
         .arg(pubkey_hex())
         .output()
         .expect("run print");
-    assert!(out.status.success(), "print failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "print failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let json: serde_json::Value =
         serde_json::from_slice(&out.stdout).expect("print emits one JSON line");
     assert_eq!(json["class"], "public-release");
@@ -255,9 +268,11 @@ fn vessel_print_reports_header_and_verdict() {
         .output()
         .expect("run print");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert!(json["signature"]
-        .as_str()
-        .is_some_and(|s| s.starts_with("unverified")));
+    assert!(
+        json["signature"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("unverified"))
+    );
     let _ = std::fs::remove_file(&p);
 }
 

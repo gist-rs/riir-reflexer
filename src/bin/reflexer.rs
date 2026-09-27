@@ -65,7 +65,9 @@ fn main() {
         return;
     }
     if pubkey_hex.is_some() && vessel_path.is_none() {
-        eprintln!("reflexer: --vessel-pubkey needs --vessel (it pins the key a vessel is verified against)");
+        eprintln!(
+            "reflexer: --vessel-pubkey needs --vessel (it pins the key a vessel is verified against)"
+        );
         std::process::exit(2);
     }
 
@@ -142,8 +144,14 @@ fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engi
     // BOTH downgrade gates: the compiled release floor (a validly-signed
     // OLD artifact cannot be handed to the operator once the floor moved)
     // and the substrate monotonic baseline (catches the v0 lineage fork).
-    let floor_refusal = verified.check_floor(vessel::MIN_ARTIFACT_VERSION).err().map(|r| r.to_string());
-    let mono_refusal = verified.check_monotonic(&vessel::SUBSTRATE).err().map(|r| r.to_string());
+    let floor_refusal = verified
+        .check_floor(vessel::MIN_ARTIFACT_VERSION)
+        .err()
+        .map(|r| r.to_string());
+    let mono_refusal = verified
+        .check_monotonic(&vessel::SUBSTRATE)
+        .err()
+        .map(|r| r.to_string());
     // WHICH gate fired (the forced line is the audit trail — round-2 note)
     let (refusal, gate) = match (floor_refusal, mono_refusal) {
         (Some(r), _) => (r, "the release floor"),
@@ -235,9 +243,7 @@ fn print_vessel(path: &str, pubkey_hex: Option<&str>) {
     let sig_verdict: String = match pins.resolve_key(header.key_id) {
         Ok(key) => {
             let sig = ed25519_dalek::Signature::from_bytes(&sig);
-            let mut msg = Vec::with_capacity(
-                vessel::HEADER_LEN + (buf.len() - vessel::PREFIX_LEN),
-            );
+            let mut msg = Vec::with_capacity(vessel::HEADER_LEN + (buf.len() - vessel::PREFIX_LEN));
             msg.extend_from_slice(&buf[0..vessel::HEADER_LEN]);
             msg.extend_from_slice(&buf[vessel::PREFIX_LEN..]);
             if key.verify_strict(&msg, &sig).is_ok() {
@@ -312,7 +318,9 @@ fn cmd_sign(args: &[String]) {
             std::process::exit(2);
         }),
         None => {
-            eprintln!("reflexer sign: --key-id <u32> is required (the PinTable identity of the minting key)");
+            eprintln!(
+                "reflexer sign: --key-id <u32> is required (the PinTable identity of the minting key)"
+            );
             std::process::exit(2);
         }
     };
@@ -339,9 +347,11 @@ fn cmd_sign(args: &[String]) {
     } else if let Ok(hex) = std::env::var("REFLEXER_SIGN_KEY") {
         vessel::writer::signing_key_from_seed_hex(hex.trim())
     } else {
-        Err("no signing key: pass --key <64-hex-seed>, --key-file <path> \
+        Err(
+            "no signing key: pass --key <64-hex-seed>, --key-file <path> \
             (64-hex text or 32 raw bytes), or set REFLEXER_SIGN_KEY"
-            .to_string())
+                .to_string(),
+        )
     }
     .unwrap_or_else(|e| {
         eprintln!("reflexer sign: {e}");
@@ -380,7 +390,11 @@ fn cmd_sign(args: &[String]) {
         eprintln!("reflexer sign: minted vessel failed re-verification ({e}) — nothing written");
         std::process::exit(1);
     });
-    assert_eq!(verified.commitment(), minted.commitment, "re-verify commitment drift");
+    assert_eq!(
+        verified.commitment(),
+        minted.commitment,
+        "re-verify commitment drift"
+    );
     if let Some(parent_dir) = std::path::Path::new(&out_path).parent()
         && !parent_dir.as_os_str().is_empty()
     {

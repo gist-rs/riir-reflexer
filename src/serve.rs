@@ -34,8 +34,7 @@ pub fn handle_line(
     // but where unwinding exists a panic must answer an envelope. (Under
     // panic=abort — every wasm build — a panic traps; the host re-creates
     // the instance and answers `internal` itself.)
-    let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| engine.answer(&request)));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| engine.answer(&request)));
     match result {
         Ok(Ok((response, ns))) => Ok((request, response, ns)),
         Ok(Err(e)) => Err(LineError {

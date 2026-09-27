@@ -87,8 +87,12 @@ pub fn signing_key_from_file(path: &Path) -> Result<SigningKey, String> {
     if bytes.len() == 32 {
         return Ok(SigningKey::from_bytes(&bytes.try_into().expect("len")));
     }
-    let text = std::str::from_utf8(&bytes)
-        .map_err(|_| format!("{}: not 32 raw bytes and not UTF-8 hex text", path.display()))?;
+    let text = std::str::from_utf8(&bytes).map_err(|_| {
+        format!(
+            "{}: not 32 raw bytes and not UTF-8 hex text",
+            path.display()
+        )
+    })?;
     signing_key_from_seed_hex(text.trim())
 }
 
@@ -178,7 +182,10 @@ mod tests {
         let key = test_key();
         let a = sign_public(&key, 4, 1, [0u8; 32], &payload()).expect("mint");
         let b = sign_public(&key, 4, 1, [0u8; 32], &payload()).expect("mint");
-        assert_eq!(a.bytes, b.bytes, "ed25519 is deterministic: identical inputs mint identical bytes");
+        assert_eq!(
+            a.bytes, b.bytes,
+            "ed25519 is deterministic: identical inputs mint identical bytes"
+        );
         assert_eq!(a.commitment, b.commitment);
         // A different key-id or version is a different vessel.
         let c = sign_public(&key, 5, 1, [0u8; 32], &payload()).expect("mint");
@@ -194,7 +201,10 @@ mod tests {
         let err = sign_public(&key, 4, 1, [0u8; 32], &big).expect_err("over-cap refused");
         assert_eq!(
             err,
-            VesselError::PayloadTooLarge { len: big.len() as u64, cap: MAX_PAYLOAD }
+            VesselError::PayloadTooLarge {
+                len: big.len() as u64,
+                cap: MAX_PAYLOAD
+            }
         );
         // Exactly at the cap is legal.
         let at_cap = vec![0u8; MAX_PAYLOAD];
@@ -263,6 +273,10 @@ mod tests {
     fn the_writer_only_produces_the_public_class() {
         let key = test_key();
         let minted = sign_public(&key, 4, 1, [0u8; 32], &payload()).expect("mint");
-        assert_eq!(minted.bytes[12..16], 0u32.to_le_bytes(), "flags bit0 (class) is 0 = public");
+        assert_eq!(
+            minted.bytes[12..16],
+            0u32.to_le_bytes(),
+            "flags bit0 (class) is 0 = public"
+        );
     }
 }

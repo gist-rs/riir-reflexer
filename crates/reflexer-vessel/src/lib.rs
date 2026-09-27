@@ -152,7 +152,11 @@ impl Header {
         let mut b = [0u8; HEADER_LEN];
         b[0..8].copy_from_slice(&MAGIC);
         b[8..12].copy_from_slice(&self.format_version.to_le_bytes());
-        let flags: u32 = if self.class == Class::HostedOnly { CLASS_BIT_HOSTED } else { 0 };
+        let flags: u32 = if self.class == Class::HostedOnly {
+            CLASS_BIT_HOSTED
+        } else {
+            0
+        };
         b[12..16].copy_from_slice(&flags.to_le_bytes());
         b[16..20].copy_from_slice(&self.key_id.to_le_bytes());
         b[20..28].copy_from_slice(&self.artifact_version.to_le_bytes());
@@ -199,18 +203,29 @@ pub enum VesselError {
     Io(String),
     /// File exceeds the size ceiling (checked from metadata BEFORE the
     /// read in [`open`]).
-    TooLarge { len: u64, cap: u64 },
+    TooLarge {
+        len: u64,
+        cap: u64,
+    },
     /// Shorter than a header + signature.
-    Truncated { len: usize },
+    Truncated {
+        len: usize,
+    },
     BadMagic,
     UnknownFormatVersion(u32),
     UnknownFlags(u32),
     /// Header payload_len disagrees with the actual bytes following the
     /// signature (file grown, shrunk, or the length field tampered).
-    PayloadLenMismatch { header: u64, file: u64 },
+    PayloadLenMismatch {
+        header: u64,
+        file: u64,
+    },
     /// payload_len exceeds MAX_PAYLOAD — refused before allocation-heavy
     /// work.
-    PayloadTooLarge { len: u64, cap: usize },
+    PayloadTooLarge {
+        len: u64,
+        cap: usize,
+    },
     /// Authentic signature, HOSTED-ONLY class — this hardware class never
     /// opens it (fail-closed; no decryption exists here).
     HostedOnly,
@@ -234,7 +249,9 @@ pub enum VesselError {
     /// Said at `peek` as a STRUCTURAL fact (the class bit is in the signed
     /// header, before any payload work) and never spoofed by a forged
     /// file; `decode` reaches it only post-signature.
-    ClassNotReadable { class: Class },
+    ClassNotReadable {
+        class: Class,
+    },
 }
 
 impl fmt::Display for VesselError {
@@ -243,19 +260,28 @@ impl fmt::Display for VesselError {
         match self {
             E::Io(e) => write!(f, "io: {e}"),
             E::TooLarge { len, cap } => write!(f, "file {len} B exceeds the {cap} B ceiling"),
-            E::Truncated { len } => write!(f, "truncated: {len} B < header+signature ({PREFIX_LEN} B)"),
+            E::Truncated { len } => {
+                write!(f, "truncated: {len} B < header+signature ({PREFIX_LEN} B)")
+            }
             E::BadMagic => write!(f, "bad magic (not a vessel)"),
-            E::UnknownFormatVersion(v) => write!(f, "unknown format version {v} (reader: {FORMAT_VERSION})"),
+            E::UnknownFormatVersion(v) => {
+                write!(f, "unknown format version {v} (reader: {FORMAT_VERSION})")
+            }
             E::UnknownFlags(fl) => write!(f, "unknown flag bits {fl:#x} (reserved bits must be 0)"),
             E::PayloadLenMismatch { header, file } => {
-                write!(f, "payload_len mismatch: header says {header}, file carries {file}")
+                write!(
+                    f,
+                    "payload_len mismatch: header says {header}, file carries {file}"
+                )
             }
             E::PayloadTooLarge { len, cap } => write!(f, "payload {len} B exceeds cap {cap} B"),
             E::HostedOnly => write!(
-                f, "hosted-only artifact — refused on uncontrolled hardware (fail-closed)"
+                f,
+                "hosted-only artifact — refused on uncontrolled hardware (fail-closed)"
             ),
             E::HostedOnlyPath => write!(
-                f, "file declares the hosted-only class — refused before reading the payload \
+                f,
+                "file declares the hosted-only class — refused before reading the payload \
                     (hosted vessels open only on the hosted lane)"
             ),
             E::UnknownKey(k) => write!(f, "key-id {k} is not pinned (fail-closed)"),
@@ -289,7 +315,11 @@ pub struct PinTable {
 
 impl PinTable {
     pub const fn empty() -> Self {
-        Self { keys: Vec::new(), revoked: Vec::new(), wildcard: None }
+        Self {
+            keys: Vec::new(),
+            revoked: Vec::new(),
+            wildcard: None,
+        }
     }
 
     /// One pinned minting key under its key-id.
@@ -377,11 +407,15 @@ pub fn peek(buf: &[u8]) -> Result<(Header, [u8; SIG_LEN]), VesselError> {
     // payload byte is read, never an authenticity claim.
     #[cfg(not(feature = "vessel_hosted_read"))]
     if header.class == Class::HostedOnly {
-        return Err(VesselError::ClassNotReadable { class: header.class });
+        return Err(VesselError::ClassNotReadable {
+            class: header.class,
+        });
     }
     #[cfg(not(feature = "vessel_public_read"))]
     if header.class == Class::PublicRelease {
-        return Err(VesselError::ClassNotReadable { class: header.class });
+        return Err(VesselError::ClassNotReadable {
+            class: header.class,
+        });
     }
     // The class-aware cap: the class bit is IN the header just parsed, so
     // the bound is picked before any payload work. A HOSTED-ONLY vessel
@@ -393,11 +427,17 @@ pub fn peek(buf: &[u8]) -> Result<(Header, [u8; SIG_LEN]), VesselError> {
         Class::PublicRelease => MAX_PAYLOAD,
     };
     if header.payload_len > cap as u64 {
-        return Err(VesselError::PayloadTooLarge { len: header.payload_len, cap });
+        return Err(VesselError::PayloadTooLarge {
+            len: header.payload_len,
+            cap,
+        });
     }
     let actual = (buf.len() - PREFIX_LEN) as u64;
     if header.payload_len != actual {
-        return Err(VesselError::PayloadLenMismatch { header: header.payload_len, file: actual });
+        return Err(VesselError::PayloadLenMismatch {
+            header: header.payload_len,
+            file: actual,
+        });
     }
     let sig: [u8; SIG_LEN] = buf[HEADER_LEN..PREFIX_LEN].try_into().expect("len");
     Ok((header, sig))
@@ -527,7 +567,10 @@ pub struct ApplyState {
 }
 
 /// The compiled-in substrate as apply-state baseline (v0, genesis).
-pub const SUBSTRATE: ApplyState = ApplyState { artifact_version: 0, commitment: [0u8; 32] };
+pub const SUBSTRATE: ApplyState = ApplyState {
+    artifact_version: 0,
+    commitment: [0u8; 32],
+};
 
 /// Verify a whole vessel buffer against the pin table — the single-read
 /// entry point. Order of checks (the security-posture law): structure and
@@ -548,14 +591,20 @@ pub fn decode(buf: &[u8], pins: &PinTable) -> Result<VerifiedVessel, VesselError
     // verified — the message cannot be spoofed by a forged file.
     #[cfg(not(feature = "vessel_public_read"))]
     if header.class == Class::PublicRelease {
-        return Err(VesselError::ClassNotReadable { class: header.class });
+        return Err(VesselError::ClassNotReadable {
+            class: header.class,
+        });
     }
     if header.class == Class::HostedOnly {
         return Err(VesselError::HostedOnly);
     }
     let payload = buf[PREFIX_LEN..].to_vec();
     let commitment = commitment_of(&header, &payload);
-    Ok(VerifiedVessel { header, payload, commitment })
+    Ok(VerifiedVessel {
+        header,
+        payload,
+        commitment,
+    })
 }
 
 /// Read once, bounded (the single-read law): regular-files only, then a
@@ -616,7 +665,10 @@ pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError>
         .read_to_end(&mut buf)
         .map_err(|e| VesselError::Io(e.to_string()))?;
     if buf.len() > cap {
-        return Err(VesselError::TooLarge { len: buf.len() as u64, cap: cap as u64 });
+        return Err(VesselError::TooLarge {
+            len: buf.len() as u64,
+            cap: cap as u64,
+        });
     }
     decode(&buf, pins)
 }
@@ -767,7 +819,10 @@ mod tests {
     fn unknown_format_version_refused() {
         let mut v = structural_public_vessel();
         v[8..12].copy_from_slice(&2u32.to_le_bytes());
-        assert_eq!(decode(&v, &test_pins()), Err(VesselError::UnknownFormatVersion(2)));
+        assert_eq!(
+            decode(&v, &test_pins()),
+            Err(VesselError::UnknownFormatVersion(2))
+        );
     }
 
     #[test]
@@ -782,7 +837,10 @@ mod tests {
         let v = structural_public_vessel();
         for len in 0..PREFIX_LEN {
             let err = decode(&v[..len], &test_pins());
-            assert!(matches!(err, Err(VesselError::Truncated { .. })), "len {len}: {err:?}");
+            assert!(
+                matches!(err, Err(VesselError::Truncated { .. })),
+                "len {len}: {err:?}"
+            );
         }
     }
 
@@ -869,7 +927,10 @@ mod tests {
         let v = forged(Class::HostedOnly, MAX_HOSTED_PAYLOAD as u64 + 1);
         assert!(matches!(
             peek(&v),
-            Err(VesselError::PayloadTooLarge { cap: MAX_HOSTED_PAYLOAD, .. })
+            Err(VesselError::PayloadTooLarge {
+                cap: MAX_HOSTED_PAYLOAD,
+                ..
+            })
         ));
     }
 
@@ -882,14 +943,20 @@ mod tests {
         let v = forged(Class::PublicRelease, MAX_PAYLOAD as u64 + 1);
         assert!(matches!(
             peek(&v),
-            Err(VesselError::PayloadTooLarge { cap: MAX_PAYLOAD, .. })
+            Err(VesselError::PayloadTooLarge {
+                cap: MAX_PAYLOAD,
+                ..
+            })
         ));
         // and exactly AT the public cap, peek still admits it (the cap is
         // inclusive — one real 1 MiB buffer, the only large allocation in
         // this suite).
         let mut at_cap = forged(Class::PublicRelease, MAX_PAYLOAD as u64);
         at_cap.resize(PREFIX_LEN + MAX_PAYLOAD, 0);
-        assert!(peek(&at_cap).is_ok(), "exactly {MAX_PAYLOAD} B is legal public");
+        assert!(
+            peek(&at_cap).is_ok(),
+            "exactly {MAX_PAYLOAD} B is legal public"
+        );
     }
 
     #[test]
@@ -955,7 +1022,10 @@ mod tests {
         let v = signed_vessel();
         let other = PinTable::with_key(99, test_key().verifying_key());
         assert_eq!(decode(&v, &other), Err(VesselError::UnknownKey(1)));
-        assert_eq!(decode(&v, &PinTable::empty()), Err(VesselError::UnknownKey(1)));
+        assert_eq!(
+            decode(&v, &PinTable::empty()),
+            Err(VesselError::UnknownKey(1))
+        );
     }
 
     #[cfg(feature = "vessel_public_read")]
@@ -1026,14 +1096,20 @@ mod tests {
         t[last] ^= 1;
         assert_eq!(decode(&t, &test_pins()), Err(VesselError::BadSignature));
         // unpinned hosted-only → UnknownKey (fail-closed before class)
-        assert_eq!(decode(&hosted, &PinTable::empty()), Err(VesselError::UnknownKey(1)));
+        assert_eq!(
+            decode(&hosted, &PinTable::empty()),
+            Err(VesselError::UnknownKey(1))
+        );
     }
 
     // ── monotonic apply ───────────────────────────────────────────────────
 
     #[cfg(feature = "vessel_public_read")]
     fn state(v: u64) -> ApplyState {
-        ApplyState { artifact_version: v, commitment: [v as u8; 32] }
+        ApplyState {
+            artifact_version: v,
+            commitment: [v as u8; 32],
+        }
     }
 
     #[cfg(feature = "vessel_public_read")]
@@ -1041,17 +1117,26 @@ mod tests {
     fn monotonic_gate_refuses_downgrades_and_forks() {
         let v5 = decode(&signed_vessel(), &test_pins()).unwrap(); // artifact v5
         assert!(v5.check_monotonic(&SUBSTRATE).is_ok(), "v5 > substrate v0");
-        assert!(v5.check_monotonic(&ApplyState {
-            artifact_version: 5,
-            commitment: v5.commitment()
-        })
-        .is_ok(), "exact re-apply is idempotent-allowed");
-        assert_eq!(
-            v5.check_monotonic(&state(6)),
-            Err(ApplyRefusal::OlderThanCurrent { current: 6, offered: 5 })
+        assert!(
+            v5.check_monotonic(&ApplyState {
+                artifact_version: 5,
+                commitment: v5.commitment()
+            })
+            .is_ok(),
+            "exact re-apply is idempotent-allowed"
         );
         assert_eq!(
-            v5.check_monotonic(&ApplyState { artifact_version: 5, commitment: [9; 32] }),
+            v5.check_monotonic(&state(6)),
+            Err(ApplyRefusal::OlderThanCurrent {
+                current: 6,
+                offered: 5
+            })
+        );
+        assert_eq!(
+            v5.check_monotonic(&ApplyState {
+                artifact_version: 5,
+                commitment: [9; 32]
+            }),
             Err(ApplyRefusal::VersionFork { version: 5 })
         );
     }
@@ -1074,11 +1159,23 @@ mod tests {
         let v1 = decode(&vessel_v(1), &test_pins()).unwrap();
         assert_eq!(
             v1.check_floor(2),
-            Err(ApplyRefusal::OlderThanCurrent { current: 2, offered: 1 })
+            Err(ApplyRefusal::OlderThanCurrent {
+                current: 2,
+                offered: 1
+            })
         );
-        assert!(v1.check_floor(1).is_ok(), "floor == version is allowed (the floor IS a shipped artifact)");
-        assert!(v1.check_floor(0).is_ok(), "floor 0 = today's posture (no artifacts shipped)");
-        assert_eq!(MIN_ARTIFACT_VERSION, 0, "no artifacts shipped — the compiled floor must be 0");
+        assert!(
+            v1.check_floor(1).is_ok(),
+            "floor == version is allowed (the floor IS a shipped artifact)"
+        );
+        assert!(
+            v1.check_floor(0).is_ok(),
+            "floor 0 = today's posture (no artifacts shipped)"
+        );
+        assert_eq!(
+            MIN_ARTIFACT_VERSION, 0,
+            "no artifacts shipped — the compiled floor must be 0"
+        );
     }
 
     #[cfg(feature = "vessel_public_read")]
@@ -1100,7 +1197,12 @@ mod tests {
         // accepts any decompressable encoding — nearly all 32-byte strings
         // — so the observable law is the signature failing, and a compiled
         // table is authored, never hostile)
-        let wrong = pins_from_bytes(&[(1, SigningKey::from_bytes(&[9u8; 32]).verifying_key().to_bytes())]);
+        let wrong = pins_from_bytes(&[(
+            1,
+            SigningKey::from_bytes(&[9u8; 32])
+                .verifying_key()
+                .to_bytes(),
+        )]);
         assert!(matches!(
             decode(&vessel_v(1), &wrong),
             Err(VesselError::BadSignature)
@@ -1116,8 +1218,8 @@ mod tests {
         // regular-file check must run BEFORE the open — assert a FIFO
         // path refuses fast (without the pre-open check this test HANGS;
         // the harness timeout is the backstop, not the defense).
-        let fifo = std::env::temp_dir()
-            .join(format!("reflexer-vessel-fifo-{}", std::process::id()));
+        let fifo =
+            std::env::temp_dir().join(format!("reflexer-vessel-fifo-{}", std::process::id()));
         let _ = std::fs::remove_file(&fifo);
         let have_mkfifo = std::process::Command::new("mkfifo")
             .arg(&fifo)
@@ -1150,7 +1252,9 @@ mod tests {
         // the first public artifact ships; this is the always-on gate)
         let mut seed: u64 = 0x5eed_cafe_f00d_0001;
         let mut next = move || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             seed >> 33
         };
         for _ in 0..2000 {
@@ -1181,11 +1285,15 @@ mod tests {
         let v = encode_public(&test_key(), 1, 1, [0u8; 32], &p);
         assert_eq!(
             peek(&v),
-            Err(VesselError::ClassNotReadable { class: Class::PublicRelease })
+            Err(VesselError::ClassNotReadable {
+                class: Class::PublicRelease
+            })
         );
         assert_eq!(
             decode(&v, &test_pins()),
-            Err(VesselError::ClassNotReadable { class: Class::PublicRelease })
+            Err(VesselError::ClassNotReadable {
+                class: Class::PublicRelease
+            })
         );
     }
 
@@ -1208,14 +1316,18 @@ mod tests {
         let hosted = encode_raw(&test_key(), header, &p);
         assert_eq!(
             peek(&hosted),
-            Err(VesselError::ClassNotReadable { class: Class::HostedOnly })
+            Err(VesselError::ClassNotReadable {
+                class: Class::HostedOnly
+            })
         );
         // decode reaches the same structural refusal first (peek runs
         // inside decode); the authenticated HostedOnly refusal is a
         // hosted-reader-capable build's answer, not this one's.
         assert_eq!(
             decode(&hosted, &test_pins()),
-            Err(VesselError::ClassNotReadable { class: Class::HostedOnly })
+            Err(VesselError::ClassNotReadable {
+                class: Class::HostedOnly
+            })
         );
     }
 }
