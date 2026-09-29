@@ -1,5 +1,54 @@
 # HISTORY.md — riir-reflexer (public)
 
+## 2026-09-30 — sigmoid delegated to the substrate, adjudicated pick-level (`fb6ac8f`; issue 002 closed)
+
+The substrate-first wave audit (2026-09-30 window) flagged `engine.rs`'s
+module-local one-branch sigmoid (`1/(1+exp(-x))`) as an unexplained body
+beside `katgpt_core::exact_sigmoid_f64` — the substrate built for exactly
+this caller class. Adjudication-gated because the two forms are NOT
+bit-identical on the reachable domain: the margin path's args
+(`(v − v_max)/scale`) are ≤ 0 always, precisely the branch where the
+stable two-branch form (`exp(x)/(1+exp(x))` for x < 0) rounds differently.
+
+**The verdict turned on one question: is the G1 pin pick-level or
+prob-level?** Read of every gate: pick-level. The champion-replay battery
+asserts decision sequences (`(use_hold, index)` pairs), stats, and genome
+id — the wire path reads only `Outcome::Choice { index }`; vessel gates
+assert the same triple; `proto_gates` holds probabilities to a 1e-3
+sum tolerance, not bits; the only score-path pin is the level
+calibration (`floor(q·5) ≥ 1` on an empty board) with real margin. So the
+ulp-level prob change the delegation makes is admissible → resolution (a),
+delegate:
+
+- The local body is DELETED; `sigmoid` is now
+  `use katgpt_core::exact_sigmoid_f64 as sigmoid` (x ≥ 0 shares the op
+  sequence with the frozen body — bit-identical; x < 0 ulp-bounded).
+- The permanent arm is `sigmoid_delegation_matches_frozen_legacy_body`
+  (engine.rs test module): the frozen legacy body kept verbatim as the
+  reference — bit-identity on x ≥ 0 (incl. `36.0`, the value that
+  discriminates a ±40 saturation early-exit), an 8-ulp bound on the
+  reachable negative domain, the death tail (`DEATH_VALUE/V_REF = -5e9`
+  → exactly `0.0` in both forms) and `sigmoid(0) = 0.5`. If the substrate
+  kernel ever drifts (saturation, narrowed intermediate, polynomial
+  swap), the pin reds and forces re-adjudication rather than silently
+  absorbing the change.
+- One honest far-tail note recorded in the pin's doc: on
+  `(-745.1, -709.8)` the legacy body saturated to `0.0` while the stable
+  form keeps the true subnormal — an accuracy IMPROVEMENT, and
+  unreachable after the f32 narrowing every call site performs.
+
+Gates at the landing: full `cargo test` exit 0 (lib 10/10 incl. the new
+pin and the score-level calibration; g1 5/5; vessel 8/8; proto 9/9;
+serve-parity 1/1); `cargo clippy --all-targets -- -D warnings` clean;
+`cargo check -p reflexer-wasm --target wasm32-wasip1` clean;
+`cargo fmt --check` clean.
+
+Issue file `.issues/002_local_f64_sigmoid_beside_exact_sigmoid_f64.md`
+removed at closure (the numbering stays monotonic — 002 is consumed).
+Precedent lineage: riir-reflex Issue 014 (delegated, bit-identical
+domain), riir-chain Issue 156 (recorded-refusal arm — the menu this
+adjudication came from), ndb Issue 611 (delegated).
+
 ## 2026-09-27 — the class-aware payload cap (`049a583`): HOSTED-ONLY may carry 16 MiB; the public reader's 1 MiB untrusted bound is UNCHANGED
 
 The specialist vessels (riir-train minter → riir-instinct hosted lane) carry i8
