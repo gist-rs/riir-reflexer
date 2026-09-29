@@ -31,6 +31,14 @@ use crate::state_codec::{GameState, SimState};
 use katgpt_core::decision_wire::{
     Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Question, QuestionKind, Routing,
 };
+// Sigmoid is delegated to the substrate's exact two-branch form: for
+// x >= 0 it shares the op sequence with this engine's frozen one-branch
+// body (bit-identical); for x < 0 it differs by rounding only, ulp-bounded.
+// Admissible because the G1 pin is pick-level (decision sequences, stats,
+// genome id) — the wire consumes `Outcome::Choice { index }`, never the
+// probabilities. The permanent arm is
+// `sigmoid_delegation_matches_frozen_legacy_body` in the test module.
+use katgpt_core::exact_sigmoid_f64 as sigmoid;
 use katgpt_tetris::rulebook::{self, Genome, View};
 use std::time::Instant;
 
@@ -307,11 +315,6 @@ impl Engine {
     }
 }
 
-#[inline]
-fn sigmoid(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
-}
-
 /// Sigmoid-margin weights at the population-std scale — the tetris_09
 /// site-walk convention, inherited (sigmoid, never softmax): the pick
 /// reads 0.5·(normalized), everything else strictly below by margin.
@@ -382,6 +385,39 @@ mod tests {
                 .0,
             2
         );
+    }
+
+    /// The frozen one-branch body this engine shipped before delegating
+    /// to `katgpt_core::exact_sigmoid_f64` — kept verbatim as the reference
+    /// arm of the delegation pin.
+    fn legacy_sigmoid(x: f64) -> f64 {
+        1.0 / (1.0 + (-x).exp())
+    }
+
+    /// Delegation pin: `x >= 0.0` (IEEE: `-0.0 >= 0.0`) shares the op
+    /// sequence with the frozen body — bit-identical, permanently. `x < 0`
+    /// takes the stable two-branch form, which rounds differently:
+    /// ulp-bounded on the reachable domain, and both forms give exactly
+    /// `0.0` in the reachable tail (`DEATH_VALUE / V_REF = -5e9`; the
+    /// margin path's `(v − v_max)/scale ≤ 0` spans the same saturation).
+    /// Reds if the substrate kernel drifts (a saturation early-exit or a
+    /// narrowed intermediate breaks an arm) — forcing re-adjudication
+    /// instead of silent absorption.
+    #[test]
+    fn sigmoid_delegation_matches_frozen_legacy_body() {
+        for &x in &[0.0, -0.0, 1e-12, 0.25, 1.0, 6.0, 36.0, 40.0, 400.0, 5e9] {
+            assert_eq!(sigmoid(x).to_bits(), legacy_sigmoid(x).to_bits(), "x = {x}");
+        }
+        for &x in &[-1e-12, -0.25, -1.0, -6.0, -36.0, -40.0, -400.0] {
+            let (d, l) = (sigmoid(x), legacy_sigmoid(x));
+            let bound = 8.0 * f64::EPSILON * d.abs().max(l.abs());
+            assert!(
+                (d - l).abs() <= bound,
+                "x = {x}: |{d:e} − {l:e}| exceeds 8 ulps"
+            );
+        }
+        assert_eq!(sigmoid(-5e9), 0.0); // the death tail, both forms
+        assert_eq!(sigmoid(0.0), 0.5);
     }
 
     #[test]
