@@ -1,5 +1,32 @@
 # HISTORY.md — riir-reflexer (public)
 
+## 2026-10-04 — vessel-mint genesis: the keygen tool, the stub worker, and the public key record (`e81d66d` + `d29de0b` + `4b40003`)
+
+The hosted-mint infrastructure's day-one bootstrap (the P4/P5 direction
+AGENTS names — the private mint home stays riir-train; this repo owns the
+format keys and the deployment plumbing):
+
+- **`vmint-keygen`** — the mint-key generation tool (Ed25519 seed → CF
+  secret). Two same-day repairs en route: a newline-glue bug in the hex
+  pipeline + an openssl ladder repair (`e81d66d`), and `--root` now
+  `mkdir -p`s the parent dir 0700 under umask 077 (`d29de0b`).
+- **`cloudflare/vessel-mint`** — a placeholder deployment (all routes 503,
+  no mint path, never reads the seed binding) so the genesis secret has a
+  home BEFORE the real worker lands; the autopilot replaces the code at
+  the same name and secrets persist across deploys. En-route catch:
+  `wrangler` 4.147's `secret put` takes `--name`, not `--worker`.
+- **`cloudflare/vessel-mint/GENESIS.md`** — the two PUBLIC verifying keys
+  (ROOT offline, signs delegations/revocations only + MINT online,
+  public-class-only, key_id 1) with custody + recovery notes (a lost mint
+  seed is recovered by ROOT re-delegation — CF secrets are write-only,
+  never readback). Seeds exist only in `~/cold` and the CF secret; never
+  committed (the `.wrangler/` account-id cache joined `.gitignore` at
+  amend time, before push).
+
+Same day, later: the relation-flow WALK joined `.docs/06_resources`
+(`2433a80`, Plan 620 Group R — `reflexer_relation_flow.walk.json`, derived
+by reflex-site `scripts/build_flow_walks.py`, never typed).
+
 ## 2026-10-04 — `.docs/06_resources`: the relation section + the first mirrored figure (`ba943d8`)
 
 Plan 004 (verdict AGREE round 2): the Reflex ↔ Reflexer relation gets the
