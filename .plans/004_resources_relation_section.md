@@ -6,6 +6,13 @@ F16 landed BEFORE Group R starts (the amended collision order, recorded in 620).
 Section live at reflex.gist.rs/resources/#reflexer (reflex-site `12538b9`, deployed
 2026-10-04; riir-reflexer docs `ba943d8`).
 
+**Owner follow-up, same day:** placement OVERRIDDEN by the owner — `#reflexer`
+now sits UNDER `#reflex` (between `#reflex` and `#rethink`), not after `#rethink`
+(the verdict round-2 placement); hero lead + CTA order follow the section order.
+Same session: `#rethink` refined against the rethink.gist.rs roadmap (two-phase
+v1/v2 shape, receipts wording, the "run it myself" FAQ now answers v2's planned
+download instead of an unconditional no).
+
 ## Goal
 
 Repeat the treatment of the `#reflex` section (reflex.gist.rs/resources/) for a
