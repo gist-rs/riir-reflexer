@@ -107,9 +107,23 @@ cargo run --release --example measure        # the G2 budget gate (box-state pre
 
 Path deps expect `../katgpt-rs` beside this repo. Use an isolated
 `CARGO_TARGET_DIR` when a sibling build holds the lock. The measurement
-contract (wire state schema, question ids, envelopes, error codes) is
-README.md §"The measurement contract" — the one home; do not restate it
-here.
+contract (wire state schema, question ids, envelopes, error codes) lives in
+README.md §"The measurement contract" (the build-surface quick reference)
+beside its book copy `.docs/02_wire_protocol/measurement_contract.md` —
+edit the two together or not at all; do not restate either here.
+
+## Documentation
+
+`.docs/` is the repo's book, the fleet way: **numbered folders** for sort
+order, **bare slugs** for files, a `README.md` index in every folder,
+`.docs/README.md` as the top index. Folders: `01_orientation` (sibling
+layout + the leaf law) · `02_wire_protocol` (the measurement contract) ·
+`03_decision_flow` (the engine flow narrative + `decision_flow.svg`) ·
+`04_vessel_format` (the format crate) · `05_measurement_lane` (the measure
+lane + trajectory submission). The README stays the build surface; where
+prose disagrees with source, the source module docs win. The flow figure
+re-render procedure (fleet renderer, no site mirror) lives in
+`.docs/03_decision_flow/decision_flow.md`.
 
 ## Numbering Discipline
 
