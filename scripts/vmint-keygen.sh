@@ -85,6 +85,9 @@ case "$pub"  in *[!0-9a-f]*|'') echo "pub not hex"  >&2; exit 1 ;; esac
 if [ "$MODE" = "root" ]; then
     [ -n "$POS1" ] || { echo "usage: $0 --root <out-file>" >&2; exit 2; }
     umask 077
+    DIR="$(dirname "$POS1")"
+    [ -d "$DIR" ] || mkdir -p "$DIR" \
+        || { echo "cannot create parent dir: $DIR" >&2; exit 1; }
     printf '%s\n' "$seed" > "$POS1"
     printf '%s\n' "$pub"   > "$POS1.pub"
     echo "root key:  $POS1 (0600) + $POS1.pub"
