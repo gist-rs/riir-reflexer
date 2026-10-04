@@ -23,6 +23,7 @@ index in every folder, and this file as the top-level index.
 | [`03_decision_flow/`](03_decision_flow/) | The end-to-end engine flow narrative + its SVG diagram (request line in → one search → question mapping → envelope out) |
 | [`04_vessel_format/`](04_vessel_format/) | The vessel format crate: format v1 anatomy, the two-class law, key rotation, monotonic apply, hardening, the public writer |
 | [`05_measurement_lane/`](05_measurement_lane/) | The measurement lane + trajectory submission: artifact pins, the box-state law, the G1/G2 gates, the signed manifest |
+| [`06_resources/`](06_resources/) | The public education write-up (the Reflex ↔ Reflexer relation) + the gfflow relation figure — mirrored to reflex.gist.rs `/resources/#reflexer` |
 
 ## Figures
 
@@ -30,7 +31,13 @@ index in every folder, and this file as the top-level index.
 mermaid block in `03_decision_flow/decision_flow.md` with the fleet renderer
 (`../reflex-site/scripts/render_flows.py` — the gist.rs web-family palette,
 the Reflex-family accent: this engine is the arena's *Reflex · rulebook*
-lane). Unlike reflex's hero figure it carries **no site mirror** — this repo
-is not in the renderer's `SOURCES`; re-render locally (the doc's
-"Re-rendering" section has the exact procedure) and always commit the doc
-and its SVG together.
+lane). It carries **no site mirror** and is NOT in the renderer's `SOURCES`;
+re-render locally (the doc's "Re-rendering" section has the exact procedure)
+and always commit the doc and its SVG together.
+
+`06_resources/reflexer_relation_flow.svg` (+ `_m`) IS a mirrored figure: the
+` ```gfflow ` block in `06_resources/resources.md` is in the renderer's
+`SOURCES`, the render writes both mirrors (this doc's directory and the
+site's `assets/`), and `render_flows.py --check` + `sync_mirror.py --check`
+gate the pair. That mirror is the decision `03_decision_flow/decision_flow.md`
+anticipated — a reflex-site call, executed by that plan.

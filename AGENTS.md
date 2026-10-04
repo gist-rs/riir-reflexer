@@ -120,10 +120,12 @@ order, **bare slugs** for files, a `README.md` index in every folder,
 layout + the leaf law) · `02_wire_protocol` (the measurement contract) ·
 `03_decision_flow` (the engine flow narrative + `decision_flow.svg`) ·
 `04_vessel_format` (the format crate) · `05_measurement_lane` (the measure
-lane + trajectory submission). The README stays the build surface; where
-prose disagrees with source, the source module docs win. The flow figure
-re-render procedure (fleet renderer, no site mirror) lives in
-`.docs/03_decision_flow/decision_flow.md`.
+lane + trajectory submission) · `06_resources` (the public education
+write-up + the mirrored gfflow relation figure). The README stays the build
+surface; where prose disagrees with source, the source module docs win. The
+hero figure's re-render procedure (fleet renderer, no site mirror) lives in
+`.docs/03_decision_flow/decision_flow.md`; the relation figure's block is
+rendered + mirrored by the fleet renderer (see `.docs/06_resources/`).
 
 ## Numbering Discipline
 
