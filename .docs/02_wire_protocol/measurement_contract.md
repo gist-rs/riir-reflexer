@@ -76,7 +76,7 @@ inside game replay and break bit-identity with the substrate battery.
 `in_engine_decision_ns` is the zero-network measurement law: render it beside
 the round-trip, never display a sub-ms decision through a same-size
 subprocess overhead (the pipe alone adds ~150 µs p50 over the engine's own
-time — [Bench 001](../.benchmarks/001_p2_engine_bin_gates.md)).
+time — [Bench 001](../../.benchmarks/001_p2_engine_bin_gates.md)).
 
 The error envelope is `{proto, error:{code, message, request_index}}`:
 `message` is display text, never parsed; `request_index` is the 1-based
@@ -125,6 +125,6 @@ reads ~0 on the Worker; the caller's round trip is the honest latency there.
   60%). Every measured game in the latency lane re-proves G1 inline.
 - `tests/proto_gates.rs` — the envelope and error surface.
 - `tests/serve_parity.rs` — Worker ≡ bin, line for line.
-- [Bench 001](../.benchmarks/001_p2_engine_bin_gates.md) — the G2 budget
+- [Bench 001](../../.benchmarks/001_p2_engine_bin_gates.md) — the G2 budget
   record (in-engine p50 353 µs no-hold / 368 µs hold, against the 500 /
   1000 µs budgets) and the box-state variance disclosure.
