@@ -1,0 +1,195 @@
+{
+ "gfflow_walk": 1,
+ "generated_by": "reflex-site scripts/render_flows.py",
+ "file": "reflexer_relation_flow.svg",
+ "title": "Reflex and Reflexer: one question vocabulary, two engines",
+ "accent": "#ff8a3d",
+ "intro": "Press play to walk the flow one step at a time, or click a dot to jump.",
+ "steps": {
+  "req": {
+   "n": "1",
+   "title": "The request",
+   "lane": "wire",
+   "color": "#ff8a3d"
+  },
+  "rxt": {
+   "n": "2a",
+   "title": "State is text",
+   "lane": "rx",
+   "color": "#ff8a3d"
+  },
+  "rft": {
+   "n": "2b",
+   "title": "State is a board",
+   "lane": "rf",
+   "color": "#ff8a3d"
+  },
+  "rxa": {
+   "n": "3a",
+   "title": "Your corpus",
+   "lane": "rx",
+   "color": "#ff8a3d"
+  },
+  "rfa": {
+   "n": "3b",
+   "title": "One frozen search",
+   "lane": "rf",
+   "color": "#ff8a3d"
+  },
+  "env": {
+   "n": "4",
+   "title": "The envelope",
+   "lane": "wire",
+   "color": "#ff8a3d"
+  },
+  "vsl": {
+   "n": "5",
+   "title": "The vessel",
+   "lane": "rf",
+   "color": "#ff8a3d"
+  }
+ },
+ "edges": [
+  {
+   "id": "req->rxt",
+   "back": false
+  },
+  {
+   "id": "req->rft",
+   "back": false
+  },
+  {
+   "id": "rxt->rxa",
+   "back": false
+  },
+  {
+   "id": "rft->rfa",
+   "back": false
+  },
+  {
+   "id": "rxa->env",
+   "back": false
+  },
+  {
+   "id": "rfa->env",
+   "back": false
+  },
+  {
+   "id": "vsl->rfa",
+   "back": true
+  }
+ ],
+ "walk": [
+  {
+   "title": "One request shape",
+   "text": "Both engines speak the same wire: a state plus typed questions — choice, score, yes-no — and both answer in the same envelope. The captured request here is Reflex's, a yes-no question about a game state.",
+   "steps": [
+    "req"
+   ],
+   "edges": [],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/reflexer_relation_flow/01_in.json",
+    "label": "POST /decide — the shared wire",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered request)",
+    "body": "{\n  \"state\": \"The piece leaves no holes under it on the left edge, sits flat on the surface, and the stack stays low.\",\n  \"questions\": [\n    {\n      \"id\": \"clean\",\n      \"kind\": \"noul\",\n      \"prompt\": \"Does the stack look clean?\"\n    }\n  ]\n}"
+   }
+  },
+  {
+   "title": "2a — the state is text",
+   "text": "Reflex's state is text you wrote: a sentence, a paragraph, a JSON object. The question engine reads it and answers from a corpus you author — or abstains.",
+   "steps": [
+    "rxt"
+   ],
+   "edges": [
+    "req->rxt"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "3a — your corpus answers",
+   "text": "Answers come from documents, so off-corpus questions abstain honestly. This one the engine is sure on: outcome yes, calibrated confidence.",
+   "steps": [
+    "rxa"
+   ],
+   "edges": [
+    "rxt->rxa"
+   ],
+   "illustrative": false,
+   "out": {
+    "lang": "json",
+    "src": "data/flows/reflexer_relation_flow/03a_out.json",
+    "label": "sure: outcome yes",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered response)",
+    "body": "{\n  \"answers\": [\n    {\n      \"question_id\": \"clean\",\n      \"outcome\": {\n        \"noul\": {\n          \"yes\": true\n        }\n      },\n      \"probabilities\": [0.51943666],\n      \"confidence\": 0.51943666\n    }\n  ],\n  \"routing\": {\n    \"lane\": \"modelless\",\n    \"reason\": \"game-head/tetris (corpus-fitted, decoded arm)\"\n  },\n  \"calibration\": {\n    \"method\": \"none\",\n    \"temperature\": 1.0\n  }\n}"
+   }
+  },
+  {
+   "title": "2b — the state is a board",
+   "text": "Reflexer's state is the game facts: the board, the falling piece, what is left in the bag. The same wire, played as a game — this recorded turn comes from the arena's replay-verified rulebook walk.",
+   "steps": [
+    "rft"
+   ],
+   "edges": [
+    "req->rft"
+   ],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/reflexer_relation_flow/02b_in.json",
+    "label": "a recorded game turn — board, piece, spot sentence",
+    "from": "recorded rulebook game — the arena's replay-verified walk (recorded by the katgpt-rs site-walk example; turn 1)",
+    "body": "{\n  \"state_sentence\": \"The stack stands low and the surface is mostly flat. There are no holes under the blocks. The square piece is falling.\",\n  \"piece\": \"O\",\n  \"board\": [\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\",\n    \"..........\"\n  ]\n}"
+   }
+  },
+  {
+   "title": "3b — one frozen search",
+   "text": "The genome scores every board each legal move can lead to, and the best plan's first move is played. Same request, same answer, on every host — the pick here is the recorded one.",
+   "steps": [
+    "rfa"
+   ],
+   "edges": [
+    "rft->rfa"
+   ],
+   "illustrative": false,
+   "out": {
+    "lang": "json",
+    "src": "data/flows/reflexer_relation_flow/03b_out.json",
+    "label": "the recorded pick — argmax over the option scores",
+    "from": "recorded rulebook game — the searched pick (argmax over the rulebook's option scores; turn 1, piece O)",
+    "body": "{\n  \"state_sentence\": \"The stack stands low and the surface is mostly flat. There are no holes under the blocks. The square piece is falling.\",\n  \"piece\": \"O\",\n  \"pick\": 5,\n  \"per_option_ms\": [\n    0.047,\n    0.047,\n    0.047,\n    0.047,\n    0.047,\n    0.047,\n    0.047,\n    0.047,\n    0.047\n  ]\n}"
+   }
+  },
+  {
+   "title": "4 — the shared envelope",
+   "text": "Both engines answer in the same shape: one typed answer per question with probabilities, or a first-class abstain. Your code does not change between them.",
+   "steps": [
+    "env"
+   ],
+   "edges": [
+    "rxa->env",
+    "rfa->env"
+   ],
+   "illustrative": false,
+   "out": {
+    "lang": "json",
+    "src": "data/flows/reflexer_relation_flow/04_out.json",
+    "label": "the envelope, Reflex side",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered response)",
+    "body": "{\n  \"answers\": [\n    {\n      \"question_id\": \"clean\",\n      \"outcome\": {\n        \"noul\": {\n          \"yes\": true\n        }\n      },\n      \"probabilities\": [0.51943666],\n      \"confidence\": 0.51943666\n    }\n  ],\n  \"routing\": {\n    \"lane\": \"modelless\",\n    \"reason\": \"game-head/tetris (corpus-fitted, decoded arm)\"\n  },\n  \"calibration\": {\n    \"method\": \"none\",\n    \"temperature\": 1.0\n  }\n}"
+   }
+  },
+  {
+   "title": "5 — the vessel swaps the genome",
+   "text": "One signed file swaps the rulebook whole at boot — monotonically, never a weighted blend, because blends do not preserve move rankings. It is a public format: anyone can mint artifacts with it.",
+   "steps": [
+    "vsl"
+   ],
+   "edges": [
+    "vsl->rfa"
+   ],
+   "illustrative": false
+  }
+ ]
+}

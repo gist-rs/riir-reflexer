@@ -138,4 +138,38 @@ from = "rxa"; to = "env"; label = "answer or abstain"
 from = "rfa"; to = "env"; label = "place · state · survive"
 [[edge]]
 from = "vsl"; to = "rfa"; back = true; label = "a different genome, whole"
+
+[[walk]]
+title = "One request shape"
+text  = "Both engines speak the same wire: a state plus typed questions — choice, score, yes-no — and both answer in the same envelope. The captured request here is Reflex's, a yes-no question about a game state."
+steps = ["req"]
+in    = { lang = "json", src = "data/flows/reflexer_relation_flow/01_in.json", label = "POST /decide — the shared wire" }
+[[walk]]
+title = "2a — the state is text"
+text  = "Reflex's state is text you wrote: a sentence, a paragraph, a JSON object. The question engine reads it and answers from a corpus you author — or abstains."
+steps = ["rxt"]
+[[walk]]
+title = "3a — your corpus answers"
+text  = "Answers come from documents, so off-corpus questions abstain honestly. This one the engine is sure on: outcome yes, calibrated confidence."
+steps = ["rxa"]
+out   = { lang = "json", src = "data/flows/reflexer_relation_flow/03a_out.json", label = "sure: outcome yes" }
+[[walk]]
+title = "2b — the state is a board"
+text  = "Reflexer's state is the game facts: the board, the falling piece, what is left in the bag. The same wire, played as a game — this recorded turn comes from the arena's replay-verified rulebook walk."
+steps = ["rft"]
+in    = { lang = "json", src = "data/flows/reflexer_relation_flow/02b_in.json", label = "a recorded game turn — board, piece, spot sentence" }
+[[walk]]
+title = "3b — one frozen search"
+text  = "The genome scores every board each legal move can lead to, and the best plan's first move is played. Same request, same answer, on every host — the pick here is the recorded one."
+steps = ["rfa"]
+out   = { lang = "json", src = "data/flows/reflexer_relation_flow/03b_out.json", label = "the recorded pick — argmax over the option scores" }
+[[walk]]
+title = "4 — the shared envelope"
+text  = "Both engines answer in the same shape: one typed answer per question with probabilities, or a first-class abstain. Your code does not change between them."
+steps = ["env"]
+out   = { lang = "json", src = "data/flows/reflexer_relation_flow/04_out.json", label = "the envelope, Reflex side" }
+[[walk]]
+title = "5 — the vessel swaps the genome"
+text  = "One signed file swaps the rulebook whole at boot — monotonically, never a weighted blend, because blends do not preserve move rankings. It is a public format: anyone can mint artifacts with it."
+steps = ["vsl"]
 ```
