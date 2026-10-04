@@ -1,6 +1,10 @@
 # Plan 004 — the Reflex ↔ Reflexer relation section on reflex.gist.rs/resources
 
-**Status:** PLANNED — verdict AGREE (round 2, 2026-10-04; two execution notes folded in below)
+**Status:** COMPLETE — 2026-10-04. T0 resolved by TAKING OVER Plan 620's idle
+WIP (P1 landed: reflex-site `fe69bd2`, riir-rethink `7b86e8b`, riir-ai `0d5f852a1`);
+F16 landed BEFORE Group R starts (the amended collision order, recorded in 620).
+Section live at reflex.gist.rs/resources/#reflexer (reflex-site `12538b9`, deployed
+2026-10-04; riir-reflexer docs `ba943d8`).
 
 ## Goal
 
@@ -98,53 +102,46 @@ reflex-site decision"* — this plan is that decision.
 
 ## Tasks
 
-- [ ] T0 — precondition: riir-ai **Plan 620** (`.plans/620_gf_flow_figures.md`,
-  IN EXECUTION) owns this page — **Group R** re-embeds every figure on
-  `resources/index.html` (F2–F8). Wait for 620 P1 + P2 Group R to LAND (not
-  just the `render_flows.py`/`sync_mirror.py` diffs currently uncommitted in
-  reflex-site), then rebase onto Group R's version of the page and its smoke.
-  After the rebase, register this plan as the first gfflow source added after
-  620 — one row appended to Plan 620's figure table (or a note under its
-  shared-file collisions section) so 620 stays the single list of figures;
-  coordinate with the owning session if 620 is still in flight.
-- [ ] T1 — reflexer docs: create `.docs/06_resources/` (`README.md` index +
-  `resources.md`: the relation write-up in the voice of
-  `../riir-reflex/.docs/05_resources/resources.md`, carrying the gfflow
-  block). Update `.docs/README.md` (Folders table + the Figures note, which
-  currently says "no site mirror" — now it has one), `AGENTS.md`
-  (Documentation folder table), `HISTORY.md` (one line). The write-up obeys
-  the public-copy laws (below) because its mirror is SERVED.
-- [ ] T2 — reflex-site plumbing: add `reflexer_root` + the
-  `Source(reflexer_root, ".docs/06_resources/resources.md", {rename map},
-  "family:#ff8a3d")` row to `render_flows.py` SOURCES; add the riir-reflexer
-  root + 3 pairs to `sync_mirror.py` (`resources.md` → `docs/reflexer/
-  resources.md`; the two SVGs → `assets/reflexer_relation_flow*.svg`). Run
-  the renderer (writes doc-side SVGs + site mirrors) and `sync_mirror.py`
-  (writes the manifest rows). Commit doc + SVG together in reflexer.
-- [ ] T3 — reflex-site page: add the `#reflexer` section to
-  `resources/index.html` per the design above; hero CTA, title/meta, overview
-  touch-up. Every `<img>` carries a real alt (the block's aria sentence).
-- [ ] T4 — extend `scripts/resources_page_smoke.cjs`: sections array 5 → 6
-  (`reflexer` after `rethink`); append the 4th framing sentence; append
-  `/assets/reflexer_relation_flow.svg` to `wanted` and re-derive the expected
-  `<img>` count from the POST-Group-R page (do not type "landed count + 1"
-  from today's tree — Group R changes the set; the `_m` variant is a
-  `<source>`, not an `<img>`). Fix the stale header comments while in there
-  (they say "four sections" / "three framing sentences" against the code's
-  five). Leave the existing framing pins byte-identical.
-- [ ] T5 — gates, all green before commit: `resources_page_smoke.cjs` ·
-  `public_copy_gate.cjs` · `render_flows.py --check` · `sync_mirror.py
-  --check` · `web_family_gate.mjs` static + `--live` (+ `--canary` exits 1)
-  from the riir-ai root. Mobile invariant: no sideways page scroll at 390
-  (the `_m` card list is what makes the figure fit).
-- [ ] T6 — land: commit BOTH repos in one family (reflexer `docs:` — docs +
-  rendered SVGs + highwater; reflex-site `feat:` — page + smoke + SOURCES +
-  mirror manifest + assets). Named-path staging ONLY (never `git add -A` —
-  reflex-site carries sibling WIP in adjacent files). Push both. Deploy
-  (`npx wrangler deploy`) and verify live: `/resources/#reflexer` anchor,
-  figure + `_m` load, mirrors byte-check, footer/bar chrome intact.
-- [ ] T7 — close-out: mark tasks done, status → COMPLETE, note the landing
-  commits in both HISTORY files.
+- [x] T0 — precondition, RESOLVED BY TAKEOVER: the sibling session's Plan 620
+  WIP was idle and uncommitted; this session took it over, completed it
+  (payload regen + re-render + gates + the P1.5 halves: pre-deploy prose +
+  web_family_gate S4 with the shrink-only pin, canary-verified) and LANDED
+  P1 across three repos (reflex-site `fe69bd2`, riir-rethink `7b86e8b`,
+  riir-ai `0d5f852a1`). F16 is registered in 620's inventory (row F16) with
+  the amended collision order: it lands BEFORE Group R; Group R then
+  migrates F2–F8 around it. The smoke counts were re-derived from the
+  actual (pre-Group-R) page: 9 → 10 imgs.
+- [x] T1 — reflexer docs: `.docs/06_resources/` (`README.md` + `resources.md`
+  with the gfflow block) created; `.docs/README.md` (Folders + Figures) and
+  `AGENTS.md` updated. Commit `ba943d8` (HISTORY line rides the close-out).
+- [x] T2 — reflex-site plumbing: `reflexer_root` + the Source row landed; the
+  riir-reflexer root + 3 pairs in sync_mirror (16/16 in sync). The renderer
+  validated the block (three refuses en route — card title width, a 3-line
+  body, a blocked one-bend route — fixed by shortening and moving the vessel
+  card to col 4; the tool working as designed).
+- [x] T3 — the `#reflexer` section landed after `#rethink` (framing sub with
+  bracketed glosses, <picture> figure + write-up links, teaser cells, FAQs
+  incl. the arena-lane naming answer, deep write-up mirror + GitHub); hero
+  CTA + title/meta + overview name the fourth name; two glossary rows added
+  (rulebook, frozen genome).
+- [x] T4 — smoke extended: six sections, the 4th framing pin, `wanted` + img
+  count re-derived (10), stale header comments fixed ("four sections"/
+  "three framing sentences" → six/four).
+- [x] T5 — gates all green: resources smoke PASS (six sections, four framings,
+  10 images, 32 glossary terms, numbers + moat + seal laws clean) ·
+  public_copy_gate PASS (7 pages × 2 sizes, 22 served md/svg) · render_flows
+  --check all-in-sync · sync_mirror --check 16/16 · web_family_gate static
+  PASS (S4: 19 flow SVGs, 4 migrated, 15 pinned) and --live PASS (4/4 fronts,
+  one type signature, geometry aligned; --canary exits 1) · home + bench
+  smokes PASS.
+- [x] T6 — landed + deployed: riir-reflexer `ba943d8` (docs + SVGs) ·
+  reflex-site `12538b9` (section + smoke + plumbing + mirrors), both pushed.
+  Deployed BOTH fronts (reflex-site via `npx wrangler deploy`; the rethink
+  site via `site/scripts/deploy.sh` — the taken-over trust flow rode along).
+  Live-verified: `/resources/#reflexer` serves, both figure variants + the
+  mirrored doc 200, rethink's gfflow trust flow + walk + walker 200.
+- [x] T7 — close-out: this status update + the HISTORY entries + the 620 F16
+  row flip (landed).
 - [-] T8 — deferred: (a) converting `.docs/03_decision_flow/decision_flow.md`'s
   mermaid-era hero block to gfflow (its re-render snippet dies with the
   mermaid path 620 removes; the committed SVG keeps rendering — not required

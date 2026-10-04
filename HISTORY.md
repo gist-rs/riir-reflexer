@@ -1,5 +1,19 @@
 # HISTORY.md — riir-reflexer (public)
 
+## 2026-10-04 — `.docs/06_resources`: the relation section + the first mirrored figure (`ba943d8`)
+
+Plan 004 (verdict AGREE round 2): the Reflex ↔ Reflexer relation gets the
+`#reflex` treatment on reflex.gist.rs `/resources/#reflexer` — placed AFTER
+`#rethink` (the ladder stays contiguous). This repo became the owning doc:
+`.docs/06_resources/resources.md` (public-copy law compliant — its mirror is
+served) + the `reflexer_relation_flow` gfflow block (branch 2a text / 2b game
+turn, merge at the envelope, the vessel back edge), rendered by the fleet
+renderer to desktop + 390px `_m`. The mirror is the decision
+`03_decision_flow/decision_flow.md` anticipated — this repo joined the
+renderer's SOURCES and sync_mirror's roots (3 pairs). Landed with the Plan 620
+P1 takeover (reflex-site `fe69bd2` + `12538b9`, riir-rethink `7b86e8b`);
+section + mirrors live 2026-10-04.
+
 ## 2026-09-30 — sigmoid delegated to the substrate, adjudicated pick-level (`fb6ac8f`; issue 002 closed)
 
 The substrate-first wave audit (2026-09-30 window) flagged `engine.rs`'s
