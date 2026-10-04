@@ -7,3 +7,6 @@ CLAUDE.md
 
 # cargo-refine machine-local state (trajectories, fixseq, outbox, active-set)
 .refine/
+
+# wrangler local state (account cache must not reach the public repo)
+.wrangler/

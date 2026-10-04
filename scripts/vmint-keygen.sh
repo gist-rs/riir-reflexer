@@ -119,7 +119,7 @@ fi
 if [ -n "$CF_ENV" ]; then set -- --env "$CF_ENV"; else set --; fi
 printf '%s' "$seed" | env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN \
                       -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL \
-    npx wrangler secret put "$SECRET" --worker "$WORKER" "$@"
+    npx wrangler secret put "$SECRET" --name "$WORKER" "$@"
 
 echo
 echo "✓ secret $SECRET pushed to worker '$WORKER'"

@@ -1,0 +1,21 @@
+# The vessel-mint autopilot Worker — PLACEHOLDER DEPLOYMENT.
+#
+# Status: secret-holder stub. This worker exists so the genesis mint key
+# (VESSEL_MINT_SEED, set via scripts/vmint-keygen.sh) has a home from day
+# one; the real autopilot (reflexer-vessel compiled to wasm32-workerd,
+# numeric guards, DO serializer, attestor-checked mints) replaces this code
+# at the same worker name — secrets persist across `wrangler deploy`.
+#
+# Per the agreed design (see the autopilot issue): this worker is
+# structurally PUBLIC-CLASS-ONLY. It must never gain a HostedOnly mint
+# path, and the seed it holds is the ONLINE tier — rotation/revocation is
+# a root-signed act (the offline root key).
+#
+# Deploy: npx wrangler deploy (from this dir, manual, from the M3).
+name = "vessel-mint"
+main = "worker.mjs"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[observability]
+enabled = false
