@@ -157,8 +157,9 @@ The SVG is rendered from the COMPACT source above (the block carrying the
 `%% file:` / `%% aria:` headers) with the fleet renderer —
 `../reflex-site/scripts/render_flows.py` (the mermaid path via mermaid.ink,
 the gist.rs web-family palette, the Reflex-family accent `#ff8a3d`: this
-engine is the arena's *Reflex · rulebook* lane). This repo is deliberately
-NOT in the renderer's `SOURCES` (no site mirror), so re-render locally and
+engine is the arena's *Reflex · rulebook* lane). This figure is not among
+the renderer's `SOURCES` (the repo's mirrored figure is
+`06_resources/resources.md`'s relation flow), so re-render locally and
 commit the doc + the SVG together — the doc block is the source of truth,
 never hand-edit the SVG:
 
@@ -178,9 +179,10 @@ for file, aria, code in rf.blocks(md, headered_only=True):
 PY
 ```
 
-(Adding this doc to the renderer's `SOURCES` — and thereby to the site's
-drift `--check` — is a reflex-site decision, not this repo's; it would add
-a site mirror that must then be committed in both repos.)
+(A site mirror for THIS figure would be a reflex-site decision — and by
+the family gate's shrink-only mermaid pin, it would have to land as a
+`gfflow` block, not this mermaid source; the repo's mirrored figure today
+is the relation flow in `06_resources/`.)
 
 ## Refs
 

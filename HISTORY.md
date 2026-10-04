@@ -170,8 +170,12 @@ so the bound is per-class:
   genome digest pinned per artifact; G1 proven inline on every measured
   game; in-engine vs round-trip rendered per posture; REFUSES on battery
   and over MAX_LOAD (default 6, the reflex bench-preflight law); G2 budget
-  enforced in-run (in-engine p50 ≤ 500 µs, p99 ≤ 1500 µs — policy vs the
-  substrate's own 0.32–0.33 ms/decision record).
+  enforced in-run (in-engine no-hold p50 ≤ 500 µs, hold p50 ≤ 1 000 µs,
+  p99 ≤ 3 000 µs both postures — the `BUDGET_*` constants in
+  `examples/measure.rs`, policy vs the substrate's own 0.32–0.33
+  ms/decision record; corrected 2026-10-04 — this line originally read
+  "p50 ≤ 500 µs, p99 ≤ 1500 µs", which matched neither the landed source
+  nor Bench 001's per-posture budgets).
 - Trajectory submission (opt-in `--record`): replayable rows + a signed
   manifest (Ed25519 over `reflexer-trajectory-v1\n{rows}\n{blake3}\n{genome}\n`),
   per-machine key at `$REFLEXER_SUBMISSION_KEY` or

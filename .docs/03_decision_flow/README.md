@@ -3,4 +3,4 @@
 | File | What it covers |
 |---|---|
 | `decision_flow.md` | The end-to-end engine flow narrative — request line in → decode/validate → state codec → ONE search → question mapping → confidence → envelope out |
-| `decision_flow.svg` | The flow diagram (rendered from the compact block in the doc; no site mirror — this repo is not in the fleet renderer's SOURCES) |
+| `decision_flow.svg` | The flow diagram (rendered from the compact block in the doc; no site mirror for THIS figure — the repo's mirrored figure is `06_resources/`'s relation flow) |
