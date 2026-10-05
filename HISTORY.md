@@ -1,5 +1,19 @@
 # HISTORY.md — riir-reflexer (public)
 
+## 2026-10-05 — issue 001 closed: the E18 first-mint runbook moves to Plan 005 (delegated verdict)
+
+The owner-gate pickup (E18 — `DEFAULT_PINS` empty until the first public
+vessel mint) closes as TRIGGER-ONLY: the VERIFIED runbook (mint → verify →
+pin, exact command forms, the two 2026-10-01 corrections folded in — payload
+is `--in` not positional; `--vessel-print` early-returns and does not combine
+with `--vessel`) now lives at `.plans/005_default_pins_first_mint.md`,
+carrying the one `- [ ]` row: land the `DEFAULT_PINS` row + the consumers'
+operator pin at the first public vessel mint. Deterministic minting —
+re-minting moves no pin — so there is nothing to prep before the mint
+exists. The pickup issue file is removed per the noise-reduction rule (full
+text in git history; the pair plan `.plans/003`'s E18 rows are superseded
+by Plan 005).
+
 ## 2026-10-04 — vessel-mint genesis: the keygen tool, the stub worker, and the public key record (`e81d66d` + `d29de0b` + `4b40003`)
 
 The hosted-mint infrastructure's day-one bootstrap (the P4/P5 direction
