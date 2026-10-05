@@ -76,16 +76,18 @@ allocation bound stays the 1 MiB public cap.
 
 - `key_id` in the header; `PinTable` holds pinned verifying keys, a revoked
   set (revocation is forever — fail closed), and an optional wildcard.
-- The compiled-in pin table `DEFAULT_PIN_KEYS` is EMPTY until the first
-  public artifact ships — every unverified-key vessel fails `UnknownKey`,
-  the correct posture. Pin the first minting key in the same change that
-  ships the first artifact. `MIN_ARTIFACT_VERSION` (0 today) is the
-  compiled release floor, set alongside the first pin: a validly-signed
-  vessel OLDER than the floor refuses to boot.
-- `--vessel-pubkey` is the operator wildcard pin (the SEAL
-  `SEAL_VESSEL_PUBKEY` precedent). Compiled pins resolve FIRST and the
-  wildcard only ADDS trust — a pinned key verifies with no flag (the
-  no-flag path must work the day the first artifact ships).
+- The compiled-in pin table `DEFAULT_PIN_KEYS` carries the AUTHORITY ROOT
+  key-id 1 (Issue 003 / Plan 009 P1: the `gist-rs vessel-sign v1`
+  derivation from the M3 root — public key `d390c0ae…3c99`), and a const
+  assert makes emptying it a COMPILE error. `MIN_ARTIFACT_VERSION` (0
+  today) is the compiled release floor, set alongside the first shipped
+  artifact: a validly-signed vessel OLDER than the floor refuses to boot.
+- `--vessel-pubkey` is the DEV-posture operator wildcard pin (Issue 003
+  T1: stock builds REFUSE the flag at parse time, exit 2; build with
+  `--features dev_pins` to restore it). Compiled pins resolve FIRST and
+  the wildcard only ADDS trust — it can never override a compiled
+  key-id, so dev fixtures claim an id outside the table (the dev gates
+  use 7).
 
 ## Apply law — monotonic, both gates
 
@@ -159,12 +161,14 @@ the public consumer.
 | flag | effect |
 |---|---|
 | `--vessel <path>` | boot the engine from the signed artifact instead of the compiled substrate |
-| `--vessel-pubkey[=<hex>]` | operator wildcard pin; requires `--vessel` (exit 2 alone) |
+| `--vessel-state <path>` | the persisted apply floor's location (default `<vessel>.state.json`; Issue 003 T2) |
+| `--vessel-pubkey[=<hex>]` | DEV-posture operator wildcard pin — stock builds refuse the flag (exit 2, naming Issue 003); `dev_pins` builds require `--vessel` beside it |
 | `--vessel-force-downgrade` | operator override of the downgrade gates — LOGS the bypass, serves |
 | `--vessel-print <path>` | inspect without applying: header/lineage/commitment always (via `peek`), signature verdict when a pin resolves (`verified` / `BAD` / `unverified: no pin for key-id N` / `REVOKED`) |
 
 On a successful apply the bin logs one line: commitment digest, artifact
-version, key-id, class, and the derived genome id.
+version, key-id, class, the derived genome id, and the apply-floor state
+path.
 
 ## G1 and the gate record
 
@@ -182,9 +186,10 @@ public can mint vessels for their own genomes on the same carrier.
 
 ## Honest caveats
 
-1. `DEFAULT_PIN_KEYS` is EMPTY — every real-world vessel fails `UnknownKey`
-   until the first minting key is pinned; `--vessel-pubkey` is the interim
-   operator path.
+1. No artifact has been minted under the authority root YET — a vessel
+   signed by any other key fails the signature gate (key-id 1) or
+   `UnknownKey` (any other id) even before the first mint; the wildcard
+   is the dev-only interim path (`dev_pins` builds).
 2. The lineage chain is one parent deep per artifact (ancestor traversal is
    a reader-side walk over files, not shipped state).
 3. `payload_len` is u64 on the wire but capped by the reader; writers assert

@@ -125,9 +125,12 @@ A vessel is how a DIFFERENT genome reaches the bin without a rebuild:
 one signed file, verified and applied whole at boot.
 
 ```sh
+reflexer --vessel champion.vessel                     # verified against the compiled-in authority pins
+reflexer --vessel champion.vessel --vessel-state /secure/state.json   # (default: <vessel>.state.json)
+reflexer --vessel-print champion.vessel               # inspect: class/version/lineage/sig verdict
+reflexer --vessel ... --vessel-force-downgrade         # operator override of the monotonic gates (logs)
+# dev builds only (--features dev_pins):
 reflexer --vessel champion.vessel --vessel-pubkey <64-hex-verifying-key>
-reflexer --vessel-print champion.vessel          # inspect: class/version/lineage/sig verdict
-reflexer --vessel ... --vessel-force-downgrade    # operator override of the monotonic gate (logs)
 ```
 
 - **Format v1** — 68-byte fixed header (magic · format version · flags ·
@@ -143,14 +146,18 @@ reflexer --vessel ... --vessel-force-downgrade    # operator override of the mon
   the reader refuses it fail-closed, and only after authenticity so the
   refusal can't be spoofed by a forged file.
 - **Keys rotate** — key-id in the header, a compiled-in pin table
-  (currently EMPTY: no artifact has shipped, so every unverified-key
-  vessel fails closed — pin the first minting key in the same change that
-  ships the first artifact), revocation, and `--vessel-pubkey` as the
-  operator trust anchor (the `SEAL_VESSEL_PUBKEY` precedent).
-- **Apply law** — verify → refuse hosted-only → monotonic gate (downgrade
-  and lineage-fork refused; force logs) → construct the engine WHOLE →
-  serve. Every vessel failure is a loud boot failure (exit 1) — there is
-  no silent fallback to the compiled champion.
+  (carrying the AUTHORITY ROOT key-id 1 since Issue 003: the
+  `gist-rs vessel-sign v1` derivation from the M3 root — a fork's own
+  key fails the signature gate even when it claims the id), revocation,
+  and `--vessel-pubkey` as the DEV-ONLY operator wildcard (stock builds
+  refuse the flag outright; build with `--features dev_pins`).
+- **Apply law** — verify → refuse hosted-only → monotonic gates (downgrade
+  and lineage-fork refused; the PERSISTED apply floor adds rollback /
+  same-version fork / non-advancing rotation refusal across restarts,
+  `<vessel>.state.json`, atomic + 0600, corrupt = loud never genesis;
+  force logs) → construct the engine WHOLE → serve. Every vessel failure
+  is a loud boot failure (exit 1) — there is no silent fallback to the
+  compiled champion.
 - **Hardening** (the security posture, on record in `.plans/002`):
   single-read bounded `open` (no stat-then-read window), verify-before-parse
   with a 1 MiB payload cap, strict signatures, and a deterministic
