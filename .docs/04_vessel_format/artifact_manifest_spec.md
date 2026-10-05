@@ -62,6 +62,31 @@ refuses). A PUBLIC repo's manifest carries ZERO protected rows — a
 protected artifact a public binary consumes is owned by a PRIVATE
 manifest and pulled into the public repo's cache at serve time.
 
+### Source pins — the `[[source_pin]]` table
+
+Base/foundation models and other blobs that are re-downloadable or
+produced in-house are NOT artifacts: nothing is placed, nothing is
+encrypted, no remote-lane row exists for them. The manifest records
+them beside the artifact table as **source pins**:
+
+| Field | Type | On which rows | Meaning |
+|---|---|---|---|
+| `name` | string | all | the pinned blob's name |
+| `sha256` | 64-hex | all | SHA-256 of the bytes — the upstream-verifiable pin (publishers and download tooling speak sha256) |
+| `blake3` | 64-hex | all | BLAKE3 of the bytes — the house hash; joins the enforcement scan's hash set (a committed blob matching a source pin is a weights-never-commit violation, name-independent) |
+| `bytes` | integer | all | exact size |
+| `source_url` | string | optional | where the bytes come from (absent for in-house-produced blobs — `provenance` names the producing run instead) |
+| `provenance` | string | private manifests | the producing run's reference (in-house blobs) |
+| `note` | string | optional | re-derivation notes, risks |
+
+Laws: at least one of `source_url` / `provenance` must be present (a
+pin that names neither its origin nor its maker is not a pin);
+`name` is unique within the table; source pins carry NO artifact-lane
+fields (no `kind`/`class`/`env`/`dek_scope`, no hashes-but-different
+names, no `remote`) and NEVER satisfy a placement — an `[[artifact]]`
+row is the only thing a file under `artifacts/<kind>/<class>/` can
+answer to.
+
 ### Fixture fixtures
 
 Machine-validated fixtures live beside the format crate

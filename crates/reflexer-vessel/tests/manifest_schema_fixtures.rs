@@ -12,6 +12,7 @@ use serde::Deserialize;
 
 const PUBLIC_ROWS: &str = include_str!("fixtures/manifest_v0/public_rows.toml");
 const PROTECTED_SHAPE: &str = include_str!("fixtures/manifest_v0/protected_shape.toml");
+const SOURCE_PINS: &str = include_str!("fixtures/manifest_v0/source_pins.toml");
 
 const KINDS: [&str; 5] = ["heads", "weights", "vessels", "corpora", "keys"];
 const CLASSES: [&str; 2] = ["public", "protected"];
@@ -42,10 +43,29 @@ struct ArtifactRow {
     remote: Vec<String>,
 }
 
+/// A `[[source_pin]]` row — the not-an-artifact table (base models,
+/// in-house blobs; nothing placed, nothing encrypted). The field set is
+/// EXACTLY this struct: an unknown field refuses, same as artifact rows.
+#[derive(Deserialize, Clone)]
+struct SourcePin {
+    name: String,
+    sha256: String,
+    blake3: String,
+    bytes: u64,
+    #[serde(default)]
+    source_url: Option<String>,
+    #[serde(default)]
+    provenance: Option<String>,
+    #[serde(default)]
+    note: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct Manifest {
     #[serde(rename = "artifact", default)]
     artifacts: Vec<ArtifactRow>,
+    #[serde(rename = "source_pin", default)]
+    source_pins: Vec<SourcePin>,
 }
 
 fn in_vocab(v: &str, vocab: &[&str]) -> bool {
@@ -117,12 +137,37 @@ fn validate_row(row: &ArtifactRow) -> Result<(), String> {
     Ok(())
 }
 
+/// The `[[source_pin]]` legality walk — the same shape as `validate_row`:
+/// one implementation, positive fixtures and planted negative arms both
+/// go through it.
+fn validate_source_pin(pin: &SourcePin) -> Result<(), String> {
+    for (label, h) in [("sha256", &pin.sha256), ("blake3", &pin.blake3)] {
+        if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(format!("pin {}: {label} {:?} is not 64-hex", pin.name, h));
+        }
+    }
+    if pin.bytes == 0 {
+        return Err(format!("pin {}: bytes must be exact (non-zero)", pin.name));
+    }
+    if pin.source_url.is_none() && pin.provenance.is_none() {
+        return Err(format!(
+            "pin {}: a pin names its origin (source_url) or its maker (provenance) — neither present",
+            pin.name
+        ));
+    }
+    Ok(())
+}
+
 fn validate_manifest(toml_text: &str, label: &str) -> Manifest {
     let m: Manifest =
         toml::from_str(toml_text).unwrap_or_else(|e| panic!("{label}: fixture must parse: {e}"));
-    assert!(!m.artifacts.is_empty(), "{label}: fixture carries rows");
     for row in &m.artifacts {
         if let Err(why) = validate_row(row) {
+            panic!("{label}: {why}");
+        }
+    }
+    for pin in &m.source_pins {
+        if let Err(why) = validate_source_pin(pin) {
             panic!("{label}: {why}");
         }
     }
@@ -234,6 +279,58 @@ fn planted_off_vocabulary_values_are_refused() {
 }
 
 #[test]
+fn source_pins_fixture_is_schema_legal() {
+    let m = validate_manifest(SOURCE_PINS, "source_pins.toml");
+    // The fixture must EXERCISE both origin laws: one row with source_url,
+    // one in-house row with provenance (never both absent).
+    assert!(
+        m.source_pins.iter().any(|p| p.source_url.is_some()),
+        "fixture must carry a source_url pin"
+    );
+    assert!(
+        m.source_pins.iter().any(|p| p.provenance.is_some()),
+        "fixture must carry an in-house (provenance) pin"
+    );
+    // `note` is optional re-derivation context, but the fixture exercises it.
+    assert!(
+        m.source_pins.iter().any(|p| p.note.is_some()),
+        "fixture exercises the optional note field"
+    );
+}
+
+#[test]
+fn planted_source_pin_violations_are_refused() {
+    let base = SourcePin {
+        name: "planted".into(),
+        sha256: "0".repeat(64),
+        blake3: "1".repeat(64),
+        bytes: 1,
+        source_url: Some("https://example.invalid/x".into()),
+        provenance: None,
+        note: None,
+    };
+
+    let mut short_sha = base.clone();
+    short_sha.sha256 = "abcd".into();
+    assert!(validate_source_pin(&short_sha).is_err(), "non-64-hex sha256 must refuse");
+
+    let mut short_blake3 = base.clone();
+    short_blake3.blake3 = "abcd".into();
+    assert!(validate_source_pin(&short_blake3).is_err(), "non-64-hex blake3 must refuse");
+
+    let mut zero_bytes = base.clone();
+    zero_bytes.bytes = 0;
+    assert!(validate_source_pin(&zero_bytes).is_err(), "zero size must refuse");
+
+    let mut originless = base.clone();
+    originless.source_url = None;
+    assert!(
+        validate_source_pin(&originless).is_err(),
+        "a pin with neither source_url nor provenance must refuse"
+    );
+}
+
+#[test]
 fn unknown_fields_are_refused_by_the_parser() {
     // Schema drift dies at the field-set check: the LAW is that the row
     // field set is EXACTLY the schema's (unknown field = refuse). The
@@ -265,6 +362,9 @@ fn unknown_fields_are_refused_by_the_parser() {
         "provenance",
         "remote",
     ];
+    const SOURCE_PIN_FIELDS: [&str; 7] = [
+        "name", "sha256", "blake3", "bytes", "source_url", "provenance", "note",
+    ];
     #[derive(Deserialize)]
     struct LooseManifest {
         #[serde(rename = "artifact", default)]
@@ -291,4 +391,41 @@ fn unknown_fields_are_refused_by_the_parser() {
             assert!(unknown.is_empty(), "{label}: unknown fields {unknown:?}");
         }
     }
+
+    // Source pins get the same walk: the fixture is clean, and a planted
+    // drift field on a pin is detected.
+    #[derive(Deserialize)]
+    struct LoosePins {
+        #[serde(rename = "source_pin", default)]
+        pins: Vec<toml::Table>,
+    }
+    for row in toml::from_str::<LoosePins>(SOURCE_PINS)
+        .expect("source fixture parses")
+        .pins
+    {
+        let unknown: Vec<&String> = row
+            .keys()
+            .filter(|k| !SOURCE_PIN_FIELDS.contains(&k.as_str()))
+            .collect();
+        assert!(unknown.is_empty(), "source_pins.toml: unknown fields {unknown:?}");
+    }
+    let drifted_pin = r#"
+        [[source_pin]]
+        name = "drift_pin"
+        sha256 = "0000000000000000000000000000000000000000000000000000000000000003"
+        blake3 = "0000000000000000000000000000000000000000000000000000000000000004"
+        bytes = 1
+        source_url = "https://example.invalid/x"
+        not_in_the_schema = true
+    "#;
+    let m: LoosePins = toml::from_str(drifted_pin).expect("parses as loose tables");
+    let unknown: Vec<&String> = m.pins[0]
+        .keys()
+        .filter(|k| !SOURCE_PIN_FIELDS.contains(&k.as_str()))
+        .collect();
+    assert_eq!(
+        unknown,
+        vec!["not_in_the_schema"],
+        "the planted pin drift field is detected"
+    );
 }

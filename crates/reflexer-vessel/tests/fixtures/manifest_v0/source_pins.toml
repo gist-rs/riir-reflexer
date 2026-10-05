@@ -1,0 +1,21 @@
+# Schema v0 fixture — SOURCE PINS (the not-an-artifact table).
+#
+# Machine-validated by tests/manifest_schema_fixtures.rs against the
+# `[[source_pin]]` laws in .docs/04_vessel_format/artifact_manifest_spec.md.
+# Public-safe by construction: synthetic names, synthetic hashes.
+
+[[source_pin]]
+name = "example_base_model_f16"
+sha256 = "1111111111111111111111111111111111111111111111111111111111111111"
+blake3 = "2222222222222222222222222222222222222222222222222222222222222222"
+bytes = 5235213856
+source_url = "https://huggingface.co/example-org/example-base-model"
+note = "re-downloadable from the publisher"
+
+[[source_pin]]
+name = "example_inhouse_quant"
+sha256 = "3333333333333333333333333333333333333333333333333333333333333333"
+blake3 = "4444444444444444444444444444444444444444444444444444444444444444"
+bytes = 7206168928
+provenance = "trained in-house; quantized locally (plan ref withheld from the public spec)"
+note = "no external source; re-derivation chain not proven"
