@@ -13,11 +13,12 @@ versioned manifest schema spec, and — critically — the RUNTIME env-key refus
 ## Scope
 
 - [ ] **Versioned class vocabulary + manifest schema SPEC** (public doc + fixtures): class
-      (`public|protected`), kind (`heads|weights|vessels|corpora`), env
-      (`none|localnet|devnet|testnet|mainnet`), `blake3_plain` / `blake3_cipher` / `plain_bytes` /
-      `cipher_bytes` / `provenance` / `remote` fields — the schema `artifact-sync lint` validates
-      against (the `*_bytes` pair is the leak-scan's size prefilter: plaintext AND ciphertext
-      blobs must both be catchable)
+      (`public|protected`), kind (`heads|weights|vessels|corpora|keys` — `keys` = wrapped-DEK
+      rows, private manifests only), env (`none|localnet|devnet|testnet|mainnet`),
+      `blake3_plain` / `blake3_cipher` / `plain_bytes` / `cipher_bytes` / `dek_scope`
+      (`train|serve-<env>|serve-shared` — protected rows only; `serve-shared` is the DECLARED
+      dual-use/multi-env relaxation) / `provenance` / `remote` fields — the schema
+      `artifact-sync lint` validates against
 - [ ] **Crosswalk** (one dialect, not two): `PUBLIC-RELEASE` ↔ `public`; `HOSTED-ONLY` ↔
       `protected` + the serve rider (hosted-only plaintext never exists off controlled hardware;
       ciphertext may live anywhere)
