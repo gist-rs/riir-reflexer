@@ -273,6 +273,24 @@ so the bound is per-class:
   (riir-dapps / riir-deployer); this repo's part ends at the wire and the
   format.
 
+## 2026-10-06 — Issue 004 CLOSED: artifact class vocabulary + manifest schema v0 + runtime per-env pin refusal (Plan 623 T2)
+
+The workspace-consolidation ask (filed 2026-10-05): ONE vocabulary home
+for at-rest artifacts that public repos can depend on — the vessel format
+already owned PUBLIC-RELEASE / HOSTED-ONLY, so this repo carries the
+class crosswalk, the versioned manifest schema, and the runtime env-key
+refusal. Landed across `3757649` → `e251274` → `76853af` → `593a30f`
+(spec + fixtures + schema v0 draft + env pin refusal + the `[[source_pin]]`
+table), all details in the issue file's own status block (git history —
+removed per the noise-reduction rule). Verdict recorded there: **fixture/
+mock only, spec ships as v0 DRAFT pending the T0 A10 ratification;
+`core.hooksPath` enrollment stays T8.** The remaining T2 acceptance
+(docs gate green; env cross-refusal proven at the reader; no behavior
+change pinned) was met in the landing; the v0→v1 bump is the
+A10-ratification follow-up (owner), and T7's `artifact-sync lint` must
+agree with the fixture validator (recorded in the spec). Nothing open in
+this repo.
+
 ## 2026-10-05 — Issue 003 CLOSED: compiled-in authority pins, dev_pins-gated wildcard, persisted apply floor (Plan 009 P1)
 
 The trust defect (filed 2026-10-04 from riir-rethink Issue 022 / Plan 009
