@@ -272,3 +272,56 @@ so the bound is per-class:
 - Next: P4/P5 — hosted serving + deployment, both in private homes
   (riir-dapps / riir-deployer); this repo's part ends at the wire and the
   format.
+
+## 2026-10-05 — Issue 003 CLOSED: compiled-in authority pins, dev_pins-gated wildcard, persisted apply floor (Plan 009 P1)
+
+The trust defect (filed 2026-10-04 from riir-rethink Issue 022 / Plan 009
+P1): a stock release build trusted whatever key the operator passed —
+`DEFAULT_PIN_KEYS` was empty, `--vessel-pubkey` installed a wildcard for
+ANY key-id, and nothing persisted across runs. A fork minted its own key,
+passed the flag, and the official bin loaded its vessels as authentic
+("a fork's next artifact would need our signature" was NOT true).
+
+Closed at `0c7d7fb` (all three gates landed + green in both feature
+postures + wasm32-wasip1):
+
+- **T1 — compiled-in authority pins.** `DEFAULT_PIN_KEYS` carries the
+  AUTHORITY ROOT key-id 1: the `gist-rs vessel-sign v1` derivation from
+  the M3 root (Plan 009 P0.1's ceremony tool output, run 2026-10-05 —
+  public key `d390c0ae…3c99`; the seed never left the M3 and is never
+  in any repo). A const assert makes an emptied table a COMPILE error —
+  the posture is load-bearing. `--vessel-pubkey` is refused at parse
+  time (exit 2, naming Issue 003) unless the bin was built with the
+  `dev_pins` feature (default off); the wildcard only ever ADDED trust,
+  and now it cannot even be reached in a stock build.
+- **T2 — the persisted apply floor** (`src/vessel_apply.rs`):
+  `{key_id, artifact_version, commitment}`, written atomically (tmp +
+  rename, 0600) after every fully successful apply; refusals for
+  rollback / same-version fork / non-advancing key rotation across
+  restarts; corrupt state is LOUD (never genesis — that would re-open
+  the rollback hole); all force-able via the existing
+  `--vessel-force-downgrade` audit trail. `--vessel-state` overrides
+  the default `<vessel>.state.json`.
+- **T3 — the gates.** `tests/vessel_apply_gates.rs`: fork-signed vessel
+  refused by the stock pins; unknown key-id fail-closed; revocation is
+  the REASON (resolve order pinned); the flag refusal at the process
+  boundary (exit 2); the apply floor's process-level rollback e2e; the
+  pin table transcription gate (`resolve_key(1)` — `pins_from_bytes`
+  silently skips bad bytes, so a typo would surface as UnknownKey).
+  The wildcard-dependent scenarios moved verbatim to
+  `tests/vessel_dev_gates.rs` (`required-features = ["dev_pins"]`,
+  fixtures at key-id 7 — the wildcard cannot override the compiled
+  authority id 1), and the stock `vessel_gates.rs` arms were reworked
+  to the new posture (fork-claims-authority-id → signature failure;
+  print verdicts BAD / unverified: no pin).
+
+End-to-end proof (release build, this session): a fork key minted at
+key-id 1 and booted with NO flag → `signature failed strict
+verification`, exit 1; with its own pubkey passed (the fork bootstrap)
+→ the Issue 003 refusal, exit 2. Live-verified on aarch64 (M3).
+
+Key-separation context: the derivation substrate + the separation gates
+(the payload key cannot mint; the sign key cannot decrypt) landed the
+same day in riir-rethink (`52dfc54`, Plan 009 P0.1+P0.3). The mint-side
+key split (`--sign-key` / `--payload-key`) is riir-train Issue 612 —
+the remaining half of Issue 022 T1.
