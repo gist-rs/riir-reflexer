@@ -6,8 +6,9 @@
 //!
 //! Usage:
 //! ```text
-//! reflexer [--record <path.jsonl>] [--vessel <path> [--vessel-pubkey <hex64>]
+//! reflexer [--record <path.jsonl>] [--vessel <path> [--vessel-state <path>]
 //!          [--vessel-force-downgrade]] [--vessel-print <path>]
+//!          [--vessel-pubkey <hex64>]   (dev_pins builds ONLY — Issue 003 T1)
 //!          | sign --in <payload> --out <vessel> --key-id <u32>
 //!                 [--artifact-version <u64>=1] [--parent <blake3-hex>]
 //!                 [--key <hex64> | --key-file <path>]   (env REFLEXER_SIGN_KEY)
@@ -31,10 +32,14 @@
 //! ed25519 against the pin table), refuse HOSTED-ONLY fail-closed, check
 //! the monotonic gate, construct the engine WHOLE, then serve. A vessel
 //! failure is a boot failure (exit 1, loud) — never a silently degraded
-//! engine. `--vessel-pubkey` is the operator trust anchor (the SEAL
-//! `SEAL_VESSEL_PUBKEY` precedent; the compiled-in minting pin table is
-//! empty until the first public artifact ships). `--vessel-print`
-//! inspects a vessel's header without applying it.
+//! engine. The compiled-in pin table carries the AUTHORITY ROOT key-id 1
+//! (Plan 009 P1 / Issue 003): a stock build trusts it ONLY, and
+//! `--vessel-pubkey` is refused unless the bin was built with the
+//! `dev_pins` feature (the dev trust posture). `--vessel-state <path>`
+//! overrides the persisted apply floor's location (default
+//! `<vessel-path>.state.json`; Issue 003 T2 — rollback/fork/non-advancing
+//! rotation across restarts refuse). `--vessel-print` inspects a vessel's
+//! header without applying it.
 
 use reflexer::engine::Engine;
 use reflexer::proto::{GENOME_ID, PROTO};
@@ -58,7 +63,22 @@ fn main() {
     let record_path = flag_value(&args, "--record");
     let vessel_path = flag_value(&args, "--vessel");
     let pubkey_hex = flag_value(&args, "--vessel-pubkey");
+    let vessel_state = flag_value(&args, "--vessel-state");
     let force_downgrade = args.iter().any(|a| a == "--vessel-force-downgrade");
+
+    // The Issue 003 T1 posture gate: the operator wildcard is a DEV
+    // posture. A stock build (what releases ship, what a fork downloads)
+    // refuses the flag outright — the compiled-in authority pins are the
+    // only trust surface, so a fork's own key cannot bootstrap trust.
+    #[cfg(not(feature = "dev_pins"))]
+    if pubkey_hex.is_some() {
+        eprintln!(
+            "reflexer: --vessel-pubkey is refused: operator wildcard pins are a dev \
+             posture (build with the dev_pins feature). This build trusts the \
+             compiled-in authority pins only (Issue 003 T1)."
+        );
+        std::process::exit(2);
+    }
 
     if let Some(path) = flag_value(&args, "--vessel-print") {
         print_vessel(&path, pubkey_hex.as_deref());
@@ -73,7 +93,7 @@ fn main() {
 
     let engine = match vessel_path {
         None => Engine::champion(),
-        Some(path) => load_vessel_engine(&path, pubkey_hex.as_deref(), force_downgrade),
+        Some(path) => load_vessel_engine(&path, pubkey_hex.as_deref(), force_downgrade, vessel_state.as_deref()),
     };
     let mut recorder = record_path.map(|p| {
         reflexer::record::TrajectoryRecorder::open(std::path::Path::new(&p))
@@ -125,11 +145,17 @@ fn main() {
 /// construct → serve. Every failure is a LOUD boot failure (exit 1) — the
 /// fallback-to-champion path does not exist, because a vessel that asked
 /// to be applied and failed must never be papered over.
-fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engine {
+fn load_vessel_engine(
+    path: &str,
+    pubkey_hex: Option<&str>,
+    force: bool,
+    state_override: Option<&str>,
+) -> Engine {
     // The compiled-in minting pins FIRST, then the operator wildcard — a
     // pinned key verifies without any flag (the no-flag path must work
     // the day the first artifact ships), and the operator pin only ADDS
-    // trust, never replaces it.
+    // trust, never replaces it. (The flag itself is refused at parse time
+    // in non-dev_pins builds — Issue 003 T1.)
     let mut pins = vessel::default_pins();
     if let Some(hex) = pubkey_hex {
         pins = pins.with_wildcard(parse_pubkey(hex).unwrap_or_else(|e| {
@@ -137,6 +163,16 @@ fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engi
             std::process::exit(2);
         }));
     }
+    // The persisted apply floor FIRST (Issue 003 T2): a corrupt state
+    // file refuses LOUDLY — reading it as genesis would re-open the
+    // rollback hole the floor exists to close.
+    let state_path = state_override
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(format!("{path}.state.json")));
+    let floor = reflexer::vessel_apply::ApplyFloor::read(&state_path).unwrap_or_else(|e| {
+        eprintln!("reflexer: applied-state refused: {e}");
+        std::process::exit(1);
+    });
     let verified = vessel::open(std::path::Path::new(path), &pins).unwrap_or_else(|e| {
         eprintln!("reflexer: vessel refused: {e}");
         std::process::exit(1);
@@ -170,19 +206,54 @@ fn load_vessel_engine(path: &str, pubkey_hex: Option<&str>, force: bool) -> Engi
             vessel::MIN_ARTIFACT_VERSION
         );
     }
+    // The PERSISTED floor's gate (Issue 003 T2): rollback / fork /
+    // non-advancing rotation across restarts. Force-able like the others
+    // (the audit trail is the point), never silent.
+    let commitment = verified.commitment_hex();
+    let commitment_bytes = hex_decode32(&commitment).unwrap_or_else(|e| {
+        eprintln!("reflexer: internal — commitment hex: {e}");
+        std::process::exit(1);
+    });
+    if let Err(e) = reflexer::vessel_apply::ApplyFloor::check(
+        floor.as_ref(),
+        verified.header().key_id,
+        verified.header().artifact_version,
+        &commitment_bytes,
+    ) {
+        if !force {
+            eprintln!("reflexer: vessel refused: {e}");
+            std::process::exit(1);
+        }
+        eprintln!(
+            "reflexer: apply-floor gate FORCED by operator flag — applied (logged): {e}"
+        );
+    }
     let engine = Engine::from_vessel_payload(verified.payload()).unwrap_or_else(|| {
         eprintln!(
             "reflexer: vessel payload is not a genome line (the whole-snapshot wire) — refused"
         );
         std::process::exit(1);
     });
+    // Persist the new floor ONLY after the fully successful apply — the
+    // next boot refuses anything older, forked, or non-advancing.
+    let new_floor = reflexer::vessel_apply::ApplyFloor {
+        key_id: verified.header().key_id,
+        artifact_version: verified.header().artifact_version,
+        commitment: commitment_bytes,
+    };
+    new_floor.write(&state_path).unwrap_or_else(|e| {
+        eprintln!("reflexer: applied-state write refused: {e}");
+        std::process::exit(1);
+    });
     eprintln!(
-        "reflexer: vessel applied: digest={} version={} key-id={} class={} genome={}",
+        "reflexer: vessel applied: digest={} version={} key-id={} class={} genome={} \
+         state={}",
         verified.commitment_hex(),
         verified.header().artifact_version,
         verified.header().key_id,
         verified.header().class.as_str(),
-        engine.genome_id()
+        engine.genome_id(),
+        state_path.display()
     );
     engine
 }

@@ -368,10 +368,28 @@ impl PinTable {
 pub const MIN_ARTIFACT_VERSION: u64 = 0;
 
 /// The compiled-in minting pins as RAW KEY BYTES (const-constructible;
-/// `VerifyingKey::from_bytes` is not const). EMPTY until the first public
-/// artifact ships — with nothing minted, every vessel fails `UnknownKey`,
-/// which is the correct posture for a repo that has minted nothing.
-pub const DEFAULT_PIN_KEYS: [(u32, [u8; 32]); 0] = [];
+/// `VerifyingKey::from_bytes` is not const). Carries the AUTHORITY ROOT
+/// key-id 1 — the `gist-rs vessel-sign v1` derivation from the M3 root
+/// (Plan 009 P1 / Issue 003; .docs/07 §6 in riir-rethink). A fork that
+/// mints its own key and passes it via `--vessel-pubkey` is refused by
+/// the release posture (the wildcard is `dev_pins`-gated in the bin).
+/// Rotate by shipping key-id 2 and revoking 1 — never by editing this
+/// entry in place (a removed pin strands every artifact under it).
+pub const DEFAULT_PIN_KEYS: [(u32, [u8; 32]); 1] = [
+    (
+        1,
+        [
+            0xd3, 0x90, 0xc0, 0xae, 0x1e, 0xd9, 0x0f, 0xf0, 0xd7, 0x32, 0xfd, 0xf7, 0xcc, 0xe9,
+            0x12, 0xa0, 0x07, 0xf7, 0x0f, 0xd0, 0x55, 0x1c, 0x5c, 0x99, 0x9e, 0x76, 0x9c, 0xfa,
+            0xb3, 0x73, 0xc9, 0x9f,
+        ],
+    ),
+];
+
+/// The authority posture is compile-time load-bearing: an emptied pin
+/// table would silently turn every `default_pins()` consumer into a
+/// wildcard-only posture (Issue 003's defect, reintroduced by a tidy-up).
+const _: () = assert!(!DEFAULT_PIN_KEYS.is_empty());
 
 /// The compiled-in pin table the bin verifies against (before any
 /// operator `--vessel-pubkey` wildcard joins it).
@@ -1191,7 +1209,8 @@ mod tests {
         );
         assert!(
             decode(&vessel_v(1), &default_pins()).is_err(),
-            "today's compiled table is empty — everything fails UnknownKey until the first artifact ships"
+            "the compiled table carries the AUTHORITY ROOT (Issue 003 T1) — a \
+             test/fork key claiming key-id 1 fails the signature gate"
         );
         // a wrong-but-parseable compiled key never verifies (from_bytes
         // accepts any decompressable encoding — nearly all 32-byte strings

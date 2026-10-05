@@ -31,3 +31,8 @@ pub mod readout;
 pub mod record;
 pub mod serve;
 pub mod state_codec;
+/// The persisted monotonic apply floor (Issue 003 T2): what the operator's
+/// machine has APPLIED, across restarts — rollback/fork/non-advancing
+/// rotation refusals over an atomically-written state file. Consumed by
+/// the bin's vessel boot path; pure std + serde, wasm-harmless.
+pub mod vessel_apply;

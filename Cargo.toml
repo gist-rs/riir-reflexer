@@ -9,6 +9,21 @@ description = "Public decision engine: runs genomes over game sims, serves typed
 [workspace]
 members = ["crates/reflexer-vessel", "crates/reflexer-wasm"]
 
+# The dev-posture vessel gates (Issue 003 T1 split): the bin-level
+# scenarios that need the `--vessel-pubkey` operator wildcard — only
+# meaningful when the bin itself accepts it.
+[[test]]
+name = "vessel_dev_gates"
+required-features = ["dev_pins"]
+
+[features]
+default = []
+# The DEV trust posture (Issue 003 T1): allows the `--vessel-pubkey`
+# operator wildcard — ANY key-id verifies under it. Default-off: a stock
+# build (what a release ships, what a fork downloads) refuses the flag and
+# trusts ONLY the compiled-in authority pins.
+dev_pins = []
+
 [dependencies]
 katgpt-core = { path = "../katgpt-rs/crates/katgpt-core", features = ["decision_wire"] }
 katgpt-tetris = { path = "../katgpt-rs/crates/katgpt-tetris" }
