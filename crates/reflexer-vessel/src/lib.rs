@@ -54,6 +54,10 @@
 //!   action and must log.
 //! - **Unknown anything fails closed:** magic, format version, flag bits,
 //!   key-id, class, lineage — an unreadable vessel is a refused vessel.
+//! - **Per-env release keying** (the `env` module): a vessel is verified
+//!   against ONLY the pin set of the env it is served in — a devnet-signed
+//!   vessel never satisfies a mainnet pin; an unpinned env refuses loud
+//!   (naming the env), never a silent fallback to the env-independent root.
 //!
 //! Minting/production tooling for the PRIVATE artifacts lives in riir-train
 //! (private, forever — no writer for class 1 exists anywhere in this
@@ -252,6 +256,13 @@ pub enum VesselError {
     ClassNotReadable {
         class: Class,
     },
+    /// The requested env has no pin set (`env` module's per-env release
+    /// keying) — a configuration gap, refused loudly naming the env. The
+    /// env-independent root (`Env::None` in the default table) always
+    /// exists; this is the named-env posture refusing to guess.
+    EnvUnpinned {
+        env: crate::env::Env,
+    },
 }
 
 impl fmt::Display for VesselError {
@@ -291,6 +302,12 @@ impl fmt::Display for VesselError {
                 f,
                 "no compiled reader for the {} class (capability feature off) — refused fail-closed",
                 class.as_str()
+            ),
+            E::EnvUnpinned { env } => write!(
+                f,
+                "no pins for env {} (per-env release keying) — refused fail-closed; \
+                 pin a minting key for this env before serving it",
+                env
             ),
         }
     }
@@ -355,6 +372,13 @@ impl PinTable {
             Some(k) => Ok(k),
             None => Err(VesselError::UnknownKey(key_id)),
         }
+    }
+
+    /// True when this table resolves NO key under ANY key-id (no pins,
+    /// no wildcard). The per-env gate ([`crate::env`]) and the workspace
+    /// artifact gate read this to tell an unpinned env from a pinned one.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty() && self.wildcard.is_none()
     }
 }
 
@@ -697,6 +721,9 @@ pub fn open(path: &Path, pins: &PinTable) -> Result<VerifiedVessel, VesselError>
 /// and the round-trip/tamper gates. The FIRST writer in this repo; no
 /// path here writes class 1 (HOSTED-ONLY minting stays riir-train).
 pub mod writer;
+
+pub mod env;
+pub use env::{Env, EnvPinTable, UnknownEnv, decode_for_env, open_for_env};
 
 /// Mint a PUBLIC-RELEASE vessel. There is deliberately NO public encoder
 /// for HOSTED-ONLY: no path in this repo writes class 1, ever (Plan 002

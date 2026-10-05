@@ -10,6 +10,13 @@ description = "The public decision-artifact vessel format: serialize/commit/veri
 blake3 = "1"
 ed25519-dalek = "2"
 
+[dev-dependencies]
+# Schema-fixture validation ONLY (tests/manifest_schema_fixtures.rs) —
+# dev-deps never reach a consumer; the shipped dep tree stays blake3 +
+# ed25519-dalek.
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+
 [features]
 # The reader CAPABILITY axis (instinct Proposal 001 T3 — A1: bytes are
 # runtime, capability is compile-time). Each feature compiles the reader

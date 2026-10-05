@@ -1,0 +1,294 @@
+//! The manifest-schema v0 fixtures validate against the SPEC's
+//! vocabulary (`.docs/04_vessel_format/artifact_manifest_spec.md`).
+//!
+//! Until `artifact-sync lint` (riir-deployer Issue 012 / Plan 623 T7)
+//! exists, THIS is the schema's mechanical pin: every fixture row parses,
+//! every enum value is in vocabulary, and the field laws hold (dek_scope
+//! required on protected non-keys rows; required ABSENT on public rows
+//! and on `keys` rows; public rows carry no `provenance`). The linter, when
+//! it lands, must agree with these checks or the disagreement is a finding.
+
+use serde::Deserialize;
+
+const PUBLIC_ROWS: &str = include_str!("fixtures/manifest_v0/public_rows.toml");
+const PROTECTED_SHAPE: &str = include_str!("fixtures/manifest_v0/protected_shape.toml");
+
+const KINDS: [&str; 5] = ["heads", "weights", "vessels", "corpora", "keys"];
+const CLASSES: [&str; 2] = ["public", "protected"];
+const ENVS: [&str; 5] = ["none", "localnet", "devnet", "testnet", "mainnet"];
+/// `serve-<env>` prefixes over the env vocabulary (minus `none`).
+const SERVE_SCOPES: [&str; 4] = [
+    "serve-localnet",
+    "serve-devnet",
+    "serve-testnet",
+    "serve-mainnet",
+];
+
+#[derive(Deserialize, Clone)]
+struct ArtifactRow {
+    name: String,
+    kind: String,
+    class: String,
+    #[serde(default)]
+    dek_scope: Option<String>,
+    env: String,
+    blake3_plain: String,
+    blake3_cipher: String,
+    plain_bytes: u64,
+    cipher_bytes: u64,
+    #[serde(default)]
+    provenance: Option<String>,
+    #[serde(default)]
+    remote: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct Manifest {
+    #[serde(rename = "artifact", default)]
+    artifacts: Vec<ArtifactRow>,
+}
+
+fn in_vocab(v: &str, vocab: &[&str]) -> bool {
+    vocab.contains(&v)
+}
+
+/// The shared row-level legality walk — the schema test's core. Returns a
+/// plain error string so BOTH the fixture test and the negative arm
+/// (unknown enum value → refusal) assert through the SAME predicate: the
+/// fixture test needs every row to pass it, the negative arm needs a
+/// planted violation to FAIL it. One implementation, two directions.
+fn validate_row(row: &ArtifactRow) -> Result<(), String> {
+    if !in_vocab(&row.kind, &KINDS) {
+        return Err(format!("row {}: kind {:?} off-vocabulary", row.name, row.kind));
+    }
+    if !in_vocab(&row.class, &CLASSES) {
+        return Err(format!("row {}: class {:?} off-vocabulary", row.name, row.class));
+    }
+    if !in_vocab(&row.env, &ENVS) {
+        return Err(format!("row {}: env {:?} off-vocabulary", row.name, row.env));
+    }
+    for h in [&row.blake3_plain, &row.blake3_cipher] {
+        if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(format!("row {}: hash {:?} is not 64-hex", row.name, h));
+        }
+    }
+    // Size law: sizes are exact, and a protected ciphertext carries the
+    // age envelope — it can never be smaller than the plaintext.
+    if row.plain_bytes == 0 || row.cipher_bytes == 0 {
+        return Err(format!("row {}: sizes must be exact (non-zero)", row.name));
+    }
+    if row.class == "protected" && row.cipher_bytes < row.plain_bytes {
+        return Err(format!(
+            "row {}: protected cipher_bytes {} < plain_bytes {} (the age envelope adds bytes)",
+            row.name, row.cipher_bytes, row.plain_bytes
+        ));
+    }
+    match (row.class.as_str(), row.kind.as_str()) {
+        ("protected", "keys") => {
+            // Wrapped-DEK rows are exempt from dek_scope — REQUIRED ABSENT.
+            if row.dek_scope.is_some() {
+                return Err(format!("row {}: keys rows must NOT carry dek_scope", row.name));
+            }
+        }
+        ("protected", _) => {
+            let scope = row.dek_scope.as_deref().ok_or_else(|| {
+                format!("row {}: protected rows REQUIRE dek_scope", row.name)
+            })?;
+            let legal = scope == "train"
+                || scope == "serve-shared"
+                || in_vocab(scope, &SERVE_SCOPES);
+            if !legal {
+                return Err(format!(
+                    "row {}: dek_scope {:?} off-vocabulary (train|serve-<env>|serve-shared)",
+                    row.name, scope
+                ));
+            }
+        }
+        ("public", _) => {
+            if row.dek_scope.is_some() {
+                return Err(format!("row {}: public rows must NOT carry dek_scope", row.name));
+            }
+        }
+        _ => unreachable!("class checked in vocabulary above"),
+    }
+    if row.remote.is_empty() {
+        return Err(format!("row {}: remote is required (content-addressed)", row.name));
+    }
+    Ok(())
+}
+
+fn validate_manifest(toml_text: &str, label: &str) -> Manifest {
+    let m: Manifest =
+        toml::from_str(toml_text).unwrap_or_else(|e| panic!("{label}: fixture must parse: {e}"));
+    assert!(!m.artifacts.is_empty(), "{label}: fixture carries rows");
+    for row in &m.artifacts {
+        if let Err(why) = validate_row(row) {
+            panic!("{label}: {why}");
+        }
+    }
+    m
+}
+
+#[test]
+fn public_rows_fixture_is_schema_legal() {
+    let m = validate_manifest(PUBLIC_ROWS, "public_rows.toml");
+    // The public-repo law, on the fixture that models it: zero protected
+    // rows, and no provenance (inventory references stay private).
+    assert!(
+        m.artifacts.iter().all(|r| r.class == "public"),
+        "public fixture must model the public-only manifest"
+    );
+    assert!(
+        m.artifacts.iter().all(|r| r.provenance.is_none()),
+        "public rows carry no provenance"
+    );
+}
+
+#[test]
+fn protected_shape_fixture_is_schema_legal() {
+    let m = validate_manifest(PROTECTED_SHAPE, "protected_shape.toml");
+    // The shape fixture must actually EXERCISE the protected vocabulary:
+    // at least one true protected row and one keys row, so the dek_scope
+    // laws below are pinned by presence, not vacuously.
+    assert!(
+        m.artifacts.iter().any(|r| r.class == "protected" && r.kind != "keys"),
+        "fixture must carry a protected non-keys row"
+    );
+    assert!(
+        m.artifacts.iter().any(|r| r.kind == "keys"),
+        "fixture must carry a keys row"
+    );
+    assert!(
+        m.artifacts
+            .iter()
+            .any(|r| r.dek_scope.as_deref() == Some("serve-shared")),
+        "fixture must carry the serve-shared relaxation"
+    );
+}
+
+#[test]
+fn planted_off_vocabulary_values_are_refused() {
+    // The negative arms: the validator must CATCH each planted violation
+    // class, not just happen to pass well-formed fixtures. Each case
+    // takes a valid row and breaks ONE field.
+    let base = ArtifactRow {
+        name: "planted".into(),
+        kind: "heads".into(),
+        class: "protected".into(),
+        dek_scope: Some("train".into()),
+        env: "none".into(),
+        blake3_plain: "0".repeat(64),
+        blake3_cipher: "0".repeat(64),
+        plain_bytes: 1,
+        cipher_bytes: 2,
+        provenance: None,
+        remote: vec!["r2://bucket/deadbeef".into()],
+    };
+
+    let mut bad_kind = base.clone();
+    bad_kind.kind = "models".into(); // not in KINDS
+    assert!(validate_row(&bad_kind).is_err(), "off-vocabulary kind must refuse");
+
+    let mut bad_class = base.clone();
+    bad_class.class = "confidential".into();
+    assert!(validate_row(&bad_class).is_err(), "off-vocabulary class must refuse");
+
+    let mut bad_env = base.clone();
+    bad_env.env = "staging".into();
+    assert!(validate_row(&bad_env).is_err(), "off-vocabulary env must refuse");
+
+    let mut bad_scope = base.clone();
+    bad_scope.dek_scope = Some("serve-staging".into());
+    assert!(validate_row(&bad_scope).is_err(), "off-vocabulary dek_scope must refuse");
+
+    let mut missing_scope = base.clone();
+    missing_scope.dek_scope = None;
+    assert!(validate_row(&missing_scope).is_err(), "protected without dek_scope must refuse");
+
+    let mut keys_with_scope = base.clone();
+    keys_with_scope.kind = "keys".into();
+    assert!(validate_row(&keys_with_scope).is_err(), "keys row WITH dek_scope must refuse");
+
+    let mut public_with_scope = base.clone();
+    public_with_scope.class = "public".into();
+    assert!(validate_row(&public_with_scope).is_err(), "public row with dek_scope must refuse");
+
+    let mut short_hash = base.clone();
+    short_hash.blake3_plain = "abcd".into();
+    assert!(validate_row(&short_hash).is_err(), "non-64-hex hash must refuse");
+
+    let mut no_remote = base.clone();
+    no_remote.remote = vec![];
+    assert!(validate_row(&no_remote).is_err(), "empty remote must refuse");
+
+    let mut cipher_below_plain = base.clone();
+    cipher_below_plain.plain_bytes = 2;
+    cipher_below_plain.cipher_bytes = 1;
+    assert!(
+        validate_row(&cipher_below_plain).is_err(),
+        "protected cipher smaller than plain must refuse"
+    );
+    let mut zero_size = base.clone();
+    zero_size.plain_bytes = 0;
+    assert!(validate_row(&zero_size).is_err(), "zero size must refuse");
+}
+
+#[test]
+fn unknown_fields_are_refused_by_the_parser() {
+    // Schema drift dies at the field-set check: the LAW is that the row
+    // field set is EXACTLY the schema's (unknown field = refuse). The
+    // linter (T7) implements the refusal; this test pins the detection on
+    // a planted drift field via the same table walk it will use.
+    let drifted = r#"
+        [[artifact]]
+        name = "drift"
+        kind = "heads"
+        class = "public"
+        env = "none"
+        blake3_plain = "0000000000000000000000000000000000000000000000000000000000000001"
+        blake3_cipher = "0000000000000000000000000000000000000000000000000000000000000002"
+        plain_bytes = 1
+        cipher_bytes = 1
+        remote = ["hf://example/x"]
+        not_in_the_schema = true
+    "#;
+    let schema_fields = [
+        "name",
+        "kind",
+        "class",
+        "dek_scope",
+        "env",
+        "blake3_plain",
+        "blake3_cipher",
+        "plain_bytes",
+        "cipher_bytes",
+        "provenance",
+        "remote",
+    ];
+    #[derive(Deserialize)]
+    struct LooseManifest {
+        #[serde(rename = "artifact", default)]
+        artifacts: Vec<toml::Table>,
+    }
+    let m: LooseManifest = toml::from_str(drifted).expect("parses as loose tables");
+    let unknown: Vec<&String> = m.artifacts[0]
+        .keys()
+        .filter(|k| !schema_fields.contains(&k.as_str()))
+        .collect();
+    assert_eq!(
+        unknown,
+        vec!["not_in_the_schema"],
+        "the planted drift field is detected"
+    );
+    // And the LEGAL fixtures carry no unknown fields under the same walk.
+    for (label, text) in [("public", PUBLIC_ROWS), ("protected", PROTECTED_SHAPE)] {
+        let m: LooseManifest = toml::from_str(text).expect("legal fixtures parse");
+        for row in &m.artifacts {
+            let unknown: Vec<&String> = row
+                .keys()
+                .filter(|k| !schema_fields.contains(&k.as_str()))
+                .collect();
+            assert!(unknown.is_empty(), "{label}: unknown fields {unknown:?}");
+        }
+    }
+}

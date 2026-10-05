@@ -1,0 +1,38 @@
+# Schema v0 fixture — PUBLIC rows (the public-repo shape).
+#
+# Machine-validated by tests/manifest_schema_fixtures.rs against the
+# enum vocabulary in .docs/04_vessel_format/artifact_manifest_spec.md.
+# Public-safe by construction: synthetic names, synthetic hashes.
+
+[[artifact]]
+name = "example_genome_public"
+kind = "vessels"
+class = "public"
+env = "none"
+blake3_plain = "0000000000000000000000000000000000000000000000000000000000000001"
+blake3_cipher = "0000000000000000000000000000000000000000000000000000000000000002"
+plain_bytes = 4096
+cipher_bytes = 4096
+remote = ["hf://datasets/example-org/example-artifacts/0000000000000000000000000000000000000000000000000000000000000002"]
+
+[[artifact]]
+name = "example_demo_specialist"
+kind = "weights"
+class = "public"
+env = "none"
+blake3_plain = "0000000000000000000000000000000000000000000000000000000000000003"
+blake3_cipher = "0000000000000000000000000000000000000000000000000000000000000004"
+plain_bytes = 262144
+cipher_bytes = 262144
+remote = ["hf://datasets/example-org/example-artifacts/0000000000000000000000000000000000000000000000000000000000000004"]
+
+[[artifact]]
+name = "example_train_corpus_public"
+kind = "corpora"
+class = "public"
+env = "none"
+blake3_plain = "0000000000000000000000000000000000000000000000000000000000000005"
+blake3_cipher = "0000000000000000000000000000000000000000000000000000000000000006"
+plain_bytes = 1048576
+cipher_bytes = 1048576
+remote = ["hf://datasets/example-org/example-artifacts/0000000000000000000000000000000000000000000000000000000000000006"]

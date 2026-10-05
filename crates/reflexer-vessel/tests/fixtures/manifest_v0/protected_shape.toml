@@ -1,0 +1,59 @@
+# Schema v0 fixture — the PROTECTED-row shape (schema documentation).
+#
+# NOT a public repo's manifest — a public manifest carries ZERO protected
+# rows (the gate law). This fixture documents the protected row's required
+# fields (dek_scope) and the `keys` kind (wrapped-DEK rows, private
+# manifests only, dek_scope REQUIRED ABSENT) for the schema test to pin
+# the enum vocabulary. Synthetic names, synthetic hashes, synthetic
+# provenance — no inventory.
+
+[[artifact]]
+name = "example_encoder_head_protected"
+kind = "heads"
+class = "protected"
+dek_scope = "train"
+env = "none"
+blake3_plain = "1000000000000000000000000000000000000000000000000000000000000001"
+blake3_cipher = "1000000000000000000000000000000000000000000000000000000000000002"
+plain_bytes = 589824
+cipher_bytes = 590080
+provenance = "private Plan NNN TNN / Bench NNN"
+remote = ["r2://example-protected-bucket/1000000000000000000000000000000000000000000000000000000000000002"]
+
+[[artifact]]
+name = "example_serving_vessel_devnet"
+kind = "vessels"
+class = "protected"
+dek_scope = "serve-devnet"
+env = "devnet"
+blake3_plain = "1000000000000000000000000000000000000000000000000000000000000003"
+blake3_cipher = "1000000000000000000000000000000000000000000000000000000000000004"
+plain_bytes = 5242880
+cipher_bytes = 5243136
+provenance = "private Plan NNN"
+remote = ["r2://example-protected-bucket/1000000000000000000000000000000000000000000000000000000000000004"]
+
+[[artifact]]
+name = "example_shared_serve_head"
+kind = "heads"
+class = "protected"
+dek_scope = "serve-shared"
+env = "none"
+blake3_plain = "1000000000000000000000000000000000000000000000000000000000000005"
+blake3_cipher = "1000000000000000000000000000000000000000000000000000000000000006"
+plain_bytes = 1310720
+cipher_bytes = 1310976
+provenance = "private Plan NNN"
+remote = ["r2://example-protected-bucket/1000000000000000000000000000000000000000000000000000000000000006"]
+
+[[artifact]]
+name = "example_wrapped_dek_train"
+kind = "keys"
+class = "protected"
+env = "none"
+blake3_plain = "2000000000000000000000000000000000000000000000000000000000000001"
+blake3_cipher = "2000000000000000000000000000000000000000000000000000000000000002"
+plain_bytes = 224
+cipher_bytes = 512
+provenance = "private key ritual — wrapped-DEK row (dek_scope REQUIRED ABSENT on keys)"
+remote = ["r2://example-protected-bucket/2000000000000000000000000000000000000000000000000000000000000002"]
