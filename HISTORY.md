@@ -23,7 +23,7 @@ first public vessel mint. Deterministic minting — re-minting moves no pin. Iss
   custody notes; a lost mint seed is recovered by ROOT re-delegation (CF secrets are
   write-only, never readback). Seeds exist only in `~/cold` and the CF secret; never
   committed (the `.wrangler/` account-id cache joined `.gitignore` at amend time, before push).
-- Same day, later: the relation-flow WALK joined `.docs/06_resources` (`2433a80`, Plan 620
+- Same day, later: the relation-flow WALK joined `.docs/06_resources` (`2433a80`, riir-ai Plan 620
   Group R — `reflexer_relation_flow.walk.json`, derived by reflex-site
   `scripts/build_flow_walks.py`, never typed).
 
@@ -35,7 +35,7 @@ contiguous). This repo became the owning doc: `.docs/06_resources/resources.md` 
 law compliant — its mirror is served) + the `reflexer_relation_flow` gfflow block (branch 2a
 text / 2b game turn, merge at the envelope, the vessel back edge), rendered by the fleet
 renderer to desktop + 390px `_m`. This repo joined the renderer's SOURCES and sync_mirror's
-roots (3 pairs). Landed with the Plan 620 P1 takeover (reflex-site `fe69bd2` + `12538b9`,
+roots (3 pairs). Landed with the riir-ai Plan 620 P1 takeover (reflex-site `fe69bd2` + `12538b9`,
 riir-rethink `7b86e8b`); section + mirrors live 2026-10-04.
 
 ## 2026-09-30 — sigmoid delegated to the substrate, adjudicated pick-level (`fb6ac8f`; issue 002 closed)
@@ -56,7 +56,7 @@ narrowing. Gates: full `cargo test` exit 0 (lib 10/10; g1 5/5; vessel 8/8; proto
 serve-parity 1/1); clippy `--all-targets -- -D warnings` clean; wasm32-wasip1 clean; fmt
 clean. `.issues/002_local_f64_sigmoid_beside_exact_sigmoid_f64.md` removed at closure (002
 consumed). Precedent lineage: riir-reflex Issue 014 (delegated, bit-identical domain),
-riir-chain Issue 156 (recorded-refusal arm — the menu this adjudication came from), ndb
+riir-chain Issue 156 (recorded-refusal arm — the menu this adjudication came from), riir-neuron-db
 Issue 611 (delegated).
 
 ## 2026-09-27 — the class-aware payload cap (`049a583`): HOSTED-ONLY may carry 16 MiB; the public reader's 1 MiB untrusted bound is UNCHANGED
@@ -164,7 +164,7 @@ HISTORY.md §Issue 893. BOUNDARY `May depend on` row updated (P2 wires it). Next
   gate, pinned by tests on both arches. Next: P4/P5 — hosted serving + deployment, private
   homes (riir-dapps / riir-deployer); this repo's part ends at the wire and the format.
 
-## 2026-10-06 — Issue 004 CLOSED: artifact class vocabulary + manifest schema v0 + runtime per-env pin refusal (Plan 623 T2)
+## 2026-10-06 — Issue 004 CLOSED: artifact class vocabulary + manifest schema v0 + runtime per-env pin refusal (riir-ai Plan 623 T2)
 
 ONE vocabulary home for at-rest artifacts that public repos can depend on — this repo
 carries the class crosswalk, the versioned manifest schema, and the runtime env-key refusal.
@@ -175,7 +175,7 @@ ratification; `core.hooksPath` enrollment stays T8.** The v0→v1 bump is the
 A10-ratification follow-up (owner); T7's `artifact-sync lint` must agree with the fixture
 validator. Nothing open in this repo.
 
-## 2026-10-05 — Issue 003 CLOSED: compiled-in authority pins, dev_pins-gated wildcard, persisted apply floor (Plan 009 P1)
+## 2026-10-05 — Issue 003 CLOSED: compiled-in authority pins, dev_pins-gated wildcard, persisted apply floor (riir-rethink Plan 009 P1)
 
 Trust defect (filed 2026-10-04 from riir-rethink Issue 022 / Plan 009 P1): a stock release
 build trusted whatever key the operator passed — `DEFAULT_PIN_KEYS` was empty,
