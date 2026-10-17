@@ -207,3 +207,11 @@ three gates green in both feature postures + wasm32-wasip1):
   day in riir-rethink (`52dfc54`, Plan 009 P0.1+P0.3); the mint-side key split
   (`--sign-key` / `--payload-key`) is riir-train Issue 612 — the remaining half of Issue 022
   T1.
+- 2026-10-17 — Issue 005 (`Manifest.proto` zero-read) CLOSED keep+repair, fix `9fe57dc`: the
+  constructor borrowed `crate::proto::PROTO` (the stdio line-protocol version) into the manifest;
+  `MANIFEST_FORMAT = 1` now owns the value (wire bytes unchanged), the field doc carries the
+  documented-write-only/forward-surface marker + the unsigned clause + the future-reader rule
+  (missing = 1, unknown fails closed), the roundtrip test pins `proto == MANIFEST_FORMAT == 1`,
+  and the orphan sweep renders the row `[documented-write-only]` weak. Verdict: keep-vs-remove ran
+  through the Claude verdict lane (REVISE → AGREE) — removal would break old readers (no serde
+  default) for zero benefit.
