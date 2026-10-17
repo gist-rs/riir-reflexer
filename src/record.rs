@@ -25,6 +25,15 @@ use std::path::{Path, PathBuf};
 /// The signed message's domain tag (version-pinned).
 pub const TRAJECTORY_DOMAIN: &str = "reflexer-trajectory-v1";
 
+/// The manifest-RECORD format version written into every [`Manifest`].
+/// Distinct from [`crate::proto::PROTO`] (the stdio line-protocol
+/// version): a bump here means the rows/manifest record shape changed,
+/// never the envelope. Issue 005: the constructor borrowed `PROTO` until
+/// this split — v1 values are coincidentally equal. v1 is pinned by the
+/// roundtrip test's assert; a bump is a deliberate edit that must update
+/// the `Manifest::proto` field doc's reader rule in the same commit.
+pub const MANIFEST_FORMAT: u32 = 1;
+
 /// One recorded decision — the exact request + the engine's outcomes, so
 /// replay-verification is a pure function of the row.
 #[derive(serde::Serialize)]
@@ -43,6 +52,19 @@ pub struct RowOutcome {
 /// The manifest written at clean EOF.
 #[derive(serde::Serialize, Deserialize)]
 pub struct Manifest {
+    /// The manifest-record format version ([`MANIFEST_FORMAT`]) — NOT the
+    /// line-protocol version (`crate::proto::PROTO`, the stdio envelope;
+    /// issue 005: the constructor borrowed that number until the split,
+    /// v1 values are coincidentally equal). documented-write-only forward
+    /// surface: written into every manifest, read by no call site today
+    /// (adjudicated 2026-10-17) — it stays so the first record-format
+    /// change has its discriminator in every manifest ever written.
+    /// UNSIGNED: the signature covers rows/rows_blake3/genome only — a
+    /// future reader may fail closed on an unknown value (the reflex
+    /// `contract_version` posture) but must never trust it. Reader rule
+    /// for that day: a missing field means 1, an unknown value fails
+    /// closed (deliberately NOT `#[serde(default)]` — u32's default is
+    /// 0, the wrong value; the rule is stated here, not implemented).
     pub proto: u32,
     pub rows: u64,
     /// BLAKE3 of the exact rows-file bytes.
@@ -137,7 +159,7 @@ impl TrajectoryRecorder {
         self.file.flush()?;
         let digest = self.hasher.finalize();
         let manifest = Manifest {
-            proto: crate::proto::PROTO,
+            proto: MANIFEST_FORMAT,
             rows: self.rows,
             rows_blake3: digest.to_string(),
             genome: genome.to_string(),
@@ -221,6 +243,11 @@ mod tests {
             serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
         let rows_bytes = std::fs::read(&rows_path).unwrap();
         assert_eq!(manifest.rows, 1);
+        assert_eq!(manifest.proto, MANIFEST_FORMAT);
+        assert_eq!(
+            MANIFEST_FORMAT, 1,
+            "manifest format bump: update the Manifest::proto field doc's reader rule + bump deliberately"
+        );
         verify_manifest(&manifest, &rows_bytes).unwrap();
         // Tamper: one flipped row byte must break verification.
         let mut tampered = rows_bytes.clone();
