@@ -1,6 +1,7 @@
 # Issue 005 — Manifest.proto: format field written from a const, read by nothing
 
 **Status:** OPEN — filed 2026-10-17 (riir-refine idle loop, orphan-report sweep intake; adjudicated per the tool's downstream-grep law)
+**Claimed:** zed-m3-idle-1017c, 2026-10-17 12:05+07, expires 2026-10-19T12:00+07 — owner-gated adjudication (keep-vs-remove on Manifest.proto) via the Claude verdict lane; fix + close-out inside the claim window
 
 `Manifest.proto` (`src/record.rs:46`, populated at `:140` from `crate::proto::PROTO`) is written into every manifest and read by **zero** call sites across the five repos that consume this crate (`riir-reflex`, `riir-instinct`, `riir-rethink`, `riir-refine`, this repo — grep `\.proto\b` over all five `src/` + `tests/`, 2026-10-17: no hits outside the decl/constructor).
 
