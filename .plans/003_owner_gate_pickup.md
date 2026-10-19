@@ -7,7 +7,7 @@ Master: `../riir-ai/.issues/1016_workspace_owner_gated_decisions_summary.md` (ri
 ## Agent-pickupable tasks
 
 - [x] E18 prep: sanity-check the issue's 3-line first-mint runbook against `reflexer sign --help` / `reflexer --help` (flag names drift; do NOT run a mint). **DONE — the VERIFIED runbook (incl. the two 2026-10-01 corrections: payload is `--in` not positional; `--vessel-print` early-returns) lives at `.plans/005_default_pins_first_mint.md` (HISTORY.md §2026-10-05).**
-- [ ] E18: at the first public vessel mint, record the verifying-key hex + commitment in the issue and file the owner call for the `DEFAULT_PINS` row. **Superseded by `.plans/005_default_pins_first_mint.md`'s single live `- [ ]` row (2026-10-05) — that plan owns the trigger now.**
+- [-] E18: at the first public vessel mint, record the verifying-key hex + commitment in the issue and file the owner call for the `DEFAULT_PINS` row. **Superseded by `.plans/005_default_pins_first_mint.md`'s single live `- [ ]` row (2026-10-05) — that plan owns the trigger now.**
 
 ## Deferred (gated)
 
