@@ -12,8 +12,8 @@
 #
 # - CF secrets are write-only: a lost mint seed is recovered by ROOT
 #   re-delegation (new key + revoke old), never by reading it back.
-# - Runs under `env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN ...` (the
-#   workspace wrangler token-alias hazard).
+# - Calls wrangler plainly: CLOUDFLARE_API_TOKEN (the deploy token) if
+#   exported, else your `wrangler login` OAuth.
 set -eu
 
 hex32() { od -An -tx1 -v | tr -d ' \n'; }
@@ -117,9 +117,7 @@ if [ -n "$SELFTEST" ]; then
 fi
 
 if [ -n "$CF_ENV" ]; then set -- --env "$CF_ENV"; else set --; fi
-printf '%s' "$seed" | env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN \
-                      -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL \
-    npx wrangler secret put "$SECRET" --name "$WORKER" "$@"
+printf '%s' "$seed" | npx wrangler secret put "$SECRET" --name "$WORKER" "$@"
 
 echo
 echo "✓ secret $SECRET pushed to worker '$WORKER'"

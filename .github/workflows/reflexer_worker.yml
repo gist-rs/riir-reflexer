@@ -5,9 +5,9 @@
 # not run on develop: work lands on develop, and nothing here fires until a
 # commit touching the engine or the Worker reaches main.
 #
-# Needs repo secret CF_DEPLOY_API_TOKEN (the same deploy-scoped token as the
-# gitignored local .env: Workers
-# Scripts edit). The engine's path deps expect katgpt-rs beside this repo,
+# Needs repo secret CF_DEPLOY_API_TOKEN, mapped to CLOUDFLARE_API_TOKEN in the
+# Deploy step (locally the same token is CLOUDFLARE_API_TOKEN in the gitignored
+# .env: Workers Scripts edit). The engine's path deps expect katgpt-rs beside this repo,
 # so the job checks both out side by side.
 name: reflexer-worker
 
