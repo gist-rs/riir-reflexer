@@ -63,7 +63,7 @@ gen_pair() {
                /usr/local/opt/openssl@3/bin/openssl; do
         command -v "$OSSL" >/dev/null 2>&1 || continue
         "$OSSL" genpkey -algorithm ed25519 -out /dev/null >/dev/null 2>&1 || continue
-        T="$(mktemp)"; CLEAN="$CLEAN $T"
+        T="$1"
         "$OSSL" genpkey -algorithm ed25519 -outform DER -out "$T" 2>/dev/null || continue
         seed_hex="$(tail -c 32 "$T" | hex32)"
         pub_hex="$("$OSSL" pkey -in "$T" -inform DER -pubout -outform DER 2>/dev/null | tail -c 32 | hex32)"
@@ -84,7 +84,11 @@ print(k.encode().hex()); print(k.verify_key.encode().hex())'
     exit 1
 }
 
-KEYS="$(gen_pair)"
+# The DER scratch is allocated HERE, not inside gen_pair: gen_pair runs in
+# the $(...) subshell, so a CLEAN append made there never reached this
+# shell and the private-key file was never wiped.
+KEYTMP="$(mktemp)"; CLEAN="$CLEAN $KEYTMP"
+KEYS="$(gen_pair "$KEYTMP")"
 seed="$(printf '%s\n' "$KEYS" | sed -n 1p)"
 pub="$(printf '%s\n'  "$KEYS" | sed -n 2p)"
 if [ "${#seed}" -ne 64 ] || [ "${#pub}" -ne 64 ]; then
