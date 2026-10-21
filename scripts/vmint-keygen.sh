@@ -20,7 +20,20 @@ hex32() { od -An -tx1 -v | tr -d ' \n'; }
 wiperm() { for f in $1; do [ -f "$f" ] || continue; rm -P -- "$f" 2>/dev/null || rm -f -- "$f"; done; }
 
 CLEAN=""
-trap '[ -n "$CLEAN" ] && wiperm "$CLEAN" || :' EXIT
+# Completion sentinel: /bin/sh on macOS is bash 3.2, which can enter the EXIT
+# trap with $?=0 after an abort (unbound variable) — a key genesis that died
+# half-way must never report success.
+VMINT_KEYGEN_COMPLETED=0
+cleanup() {
+    st=$?
+    [ -n "$CLEAN" ] && wiperm "$CLEAN" || :
+    if [ "$VMINT_KEYGEN_COMPLETED" != "1" ] && [ "$st" = "0" ]; then
+        echo "✗ vmint-keygen ABORTED mid-run while reporting success — forcing exit 1" >&2
+        exit 1
+    fi
+    exit "$st"
+}
+trap cleanup EXIT
 
 MODE="mint"; CF_ENV=""; SELFTEST=""; POS1=""; POS2=""
 while [ $# -gt 0 ]; do
@@ -28,7 +41,7 @@ while [ $# -gt 0 ]; do
         --root)     MODE="root" ;;
         --env)      CF_ENV="${2:?}"; shift ;;
         --selftest) SELFTEST="${2:?}"; shift ;;
-        -h|--help)  sed -n '2,12p' "$0"; exit 0 ;;
+        -h|--help)  sed -n '2,12p' "$0"; VMINT_KEYGEN_COMPLETED=1; exit 0 ;;
         -*)         echo "unknown flag: $1" >&2; exit 2 ;;
         *)          if   [ -z "$POS1" ]; then POS1="$1"
                     elif [ -z "$POS2" ]; then POS2="$1"
@@ -93,6 +106,7 @@ if [ "$MODE" = "root" ]; then
     echo "root key:  $POS1 (0600) + $POS1.pub"
     echo "verifying: $pub"
     echo "MOVE IT OFFLINE NOW — the root signs delegations/revocations and never touches CF or any repo."
+    VMINT_KEYGEN_COMPLETED=1
     exit 0
 fi
 
@@ -124,3 +138,4 @@ echo "✓ secret $SECRET pushed to worker '$WORKER'"
 echo "RECORD this verifying key (delegation cert / issue / future DEFAULT_PINS):"
 echo "  $pub"
 echo "key_id at mint: 1  (rotate = new key + new key_id + root-signed revocation)"
+VMINT_KEYGEN_COMPLETED=1   # the last line — see cleanup above
