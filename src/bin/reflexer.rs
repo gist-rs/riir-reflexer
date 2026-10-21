@@ -93,7 +93,12 @@ fn main() {
 
     let engine = match vessel_path {
         None => Engine::champion(),
-        Some(path) => load_vessel_engine(&path, pubkey_hex.as_deref(), force_downgrade, vessel_state.as_deref()),
+        Some(path) => load_vessel_engine(
+            &path,
+            pubkey_hex.as_deref(),
+            force_downgrade,
+            vessel_state.as_deref(),
+        ),
     };
     let mut recorder = record_path.map(|p| {
         reflexer::record::TrajectoryRecorder::open(std::path::Path::new(&p))
@@ -224,9 +229,7 @@ fn load_vessel_engine(
             eprintln!("reflexer: vessel refused: {e}");
             std::process::exit(1);
         }
-        eprintln!(
-            "reflexer: apply-floor gate FORCED by operator flag — applied (logged): {e}"
-        );
+        eprintln!("reflexer: apply-floor gate FORCED by operator flag — applied (logged): {e}");
     }
     let engine = Engine::from_vessel_payload(verified.payload()).unwrap_or_else(|| {
         eprintln!(

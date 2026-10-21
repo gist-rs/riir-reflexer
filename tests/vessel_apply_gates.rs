@@ -69,7 +69,10 @@ fn revoked_key_ids_fail_closed_before_signature_work_matters() {
     let err = vessel::open(&tmp, &pins).expect_err("revoked key must refuse");
     // The revocation must be the REASON (resolve order), not a signature
     // failure that happens to coincide.
-    assert!(matches!(err, vessel::VesselError::RevokedKey(1)), "got: {err:?}");
+    assert!(
+        matches!(err, vessel::VesselError::RevokedKey(1)),
+        "got: {err:?}"
+    );
     let _ = std::fs::remove_file(&tmp);
 }
 
@@ -89,7 +92,11 @@ fn the_stock_bin_refuses_the_operator_wildcard_flag() {
         // This test binary was built WITH dev_pins — the posture under
         // test is the default one; the dev bin ACCEPTS the flag and then
         // fails loudly on the missing file (fail-closed, exit 1).
-        assert_eq!(out.status.code(), Some(1), "missing vessel must fail loudly");
+        assert_eq!(
+            out.status.code(),
+            Some(1),
+            "missing vessel must fail loudly"
+        );
     } else {
         assert_eq!(
             out.status.code(),

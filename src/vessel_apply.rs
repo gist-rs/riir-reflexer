@@ -37,7 +37,11 @@ pub enum ApplyFloorError {
     /// A different key at a non-advanced version — a rotation must ship a
     /// strictly newer artifact; a "new key, same version" is a takeover
     /// shape, not a rotation.
-    UnadvancedKeyRotation { vessel_key_id: u32, applied_key_id: u32, artifact_version: u64 },
+    UnadvancedKeyRotation {
+        vessel_key_id: u32,
+        applied_key_id: u32,
+        artifact_version: u64,
+    },
     /// The state file exists but does not parse — never read as genesis.
     Corrupt(String),
     /// State I/O failed — the floor cannot be established.
@@ -52,12 +56,19 @@ impl std::fmt::Display for ApplyFloorError {
                 "artifact v{vessel} refused — the applied floor is at v{applied} \
                  (rollback across restarts)"
             ),
-            Self::Fork { key_id, artifact_version } => write!(
+            Self::Fork {
+                key_id,
+                artifact_version,
+            } => write!(
                 f,
                 "artifact v{artifact_version} under key-id {key_id} refuses — the applied \
                  floor holds a DIFFERENT commitment at the same version (a fork)"
             ),
-            Self::UnadvancedKeyRotation { vessel_key_id, applied_key_id, artifact_version } => write!(
+            Self::UnadvancedKeyRotation {
+                vessel_key_id,
+                applied_key_id,
+                artifact_version,
+            } => write!(
                 f,
                 "key-id {vessel_key_id} refuses — the applied floor holds key-id \
                  {applied_key_id} at v{artifact_version} (a rotation must ship a strictly \
@@ -89,7 +100,10 @@ impl ApplyFloor {
         }
         if artifact_version == f.artifact_version {
             if commitment != &f.commitment {
-                return Err(ApplyFloorError::Fork { key_id, artifact_version });
+                return Err(ApplyFloorError::Fork {
+                    key_id,
+                    artifact_version,
+                });
             }
             if key_id != f.key_id {
                 return Err(ApplyFloorError::UnadvancedKeyRotation {
@@ -121,7 +135,8 @@ impl ApplyFloor {
         let mut commitment = [0u8; 32];
         if dto.commitment.len() != 64
             || !dto.commitment.chars().all(|c| c.is_ascii_hexdigit())
-            || dto.commitment
+            || dto
+                .commitment
                 .as_bytes()
                 .chunks(2)
                 .enumerate()
@@ -155,7 +170,11 @@ impl ApplyFloor {
         let dto = Dto {
             key_id: self.key_id,
             artifact_version: self.artifact_version,
-            commitment: &self.commitment.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+            commitment: &self
+                .commitment
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
         };
         let text = serde_json::to_string(&dto)
             .map_err(|e| ApplyFloorError::Io(format!("serialize: {e}")))?;
@@ -184,8 +203,9 @@ impl ApplyFloor {
             .and_then(|()| f.sync_all())
             .map_err(|e| ApplyFloorError::Io(format!("{}: {e}", tmp.display())))?;
         drop(f);
-        std::fs::rename(&tmp, path)
-            .map_err(|e| ApplyFloorError::Io(format!("{} -> {}: {e}", tmp.display(), path.display())))
+        std::fs::rename(&tmp, path).map_err(|e| {
+            ApplyFloorError::Io(format!("{} -> {}: {e}", tmp.display(), path.display()))
+        })
     }
 }
 
@@ -217,7 +237,10 @@ mod tests {
         let err = ApplyFloor::check(floor(3, 7).as_ref(), 1, 2, &[9u8; 32]).unwrap_err();
         assert_eq!(
             err,
-            ApplyFloorError::Downgrade { vessel: 2, applied: 3 }
+            ApplyFloorError::Downgrade {
+                vessel: 2,
+                applied: 3
+            }
         );
     }
 
@@ -248,15 +271,29 @@ mod tests {
         let p = tmp_path("roundtrip");
         let _ = std::fs::remove_file(&p);
         assert_eq!(ApplyFloor::read(&p).unwrap(), None);
-        let fl = ApplyFloor { key_id: 1, artifact_version: 5, commitment: [0xAB; 32] };
+        let fl = ApplyFloor {
+            key_id: 1,
+            artifact_version: 5,
+            commitment: [0xAB; 32],
+        };
         fl.write(&p).expect("write");
         assert_eq!(ApplyFloor::read(&p).unwrap(), Some(fl));
         // Corrupt never reads as genesis.
         std::fs::write(&p, b"{not json").unwrap();
-        assert!(matches!(ApplyFloor::read(&p), Err(ApplyFloorError::Corrupt(_))));
+        assert!(matches!(
+            ApplyFloor::read(&p),
+            Err(ApplyFloorError::Corrupt(_))
+        ));
         // Bad commitment hex likewise.
-        std::fs::write(&p, br#"{"key_id":1,"artifact_version":5,"commitment":"zz"}"#).unwrap();
-        assert!(matches!(ApplyFloor::read(&p), Err(ApplyFloorError::Corrupt(_))));
+        std::fs::write(
+            &p,
+            br#"{"key_id":1,"artifact_version":5,"commitment":"zz"}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            ApplyFloor::read(&p),
+            Err(ApplyFloorError::Corrupt(_))
+        ));
         let _ = std::fs::remove_file(&p);
     }
 
@@ -264,7 +301,11 @@ mod tests {
     fn write_is_atomic_no_tmp_litter() {
         let p = tmp_path("atomic");
         let _ = std::fs::remove_file(&p);
-        let fl = ApplyFloor { key_id: 2, artifact_version: 9, commitment: [1u8; 32] };
+        let fl = ApplyFloor {
+            key_id: 2,
+            artifact_version: 9,
+            commitment: [1u8; 32],
+        };
         fl.write(&p).expect("write");
         let tmp = p.with_extension(format!("tmp{}", std::process::id()));
         assert!(!tmp.exists(), "rename must consume the tmp file");

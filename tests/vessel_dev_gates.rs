@@ -62,11 +62,17 @@ fn pubkey_hex_flag() -> String {
 fn expect_boot_failure(name: &str, bytes: &[u8], extra: &[&str]) {
     let p = tmp_vessel(name, bytes);
     let mut cmd = std::process::Command::new(bin());
-    cmd.arg("--vessel").arg(&p).arg("--vessel-state").arg(tmp_state(name));
+    cmd.arg("--vessel")
+        .arg(&p)
+        .arg("--vessel-state")
+        .arg(tmp_state(name));
     for e in extra {
         cmd.arg(e);
     }
-    let out = cmd.stdin(std::process::Stdio::null()).output().expect("run bin");
+    let out = cmd
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("run bin");
     assert!(
         !out.status.success(),
         "{name} vessel booted (stderr: {})",
@@ -78,7 +84,10 @@ fn expect_boot_failure(name: &str, bytes: &[u8], extra: &[&str]) {
 fn tmp_state(name: &str) -> std::path::PathBuf {
     // Fresh state per scenario — the persisted floor is not under test
     // here (that is vessel_apply_gates).
-    std::env::temp_dir().join(format!("reflexer-devpin-{}-{name}.state", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "reflexer-devpin-{}-{name}.state",
+        std::process::id()
+    ))
 }
 
 /// Forge a HOSTED-ONLY vessel by header bit-flip (class gate at the bin).
@@ -182,7 +191,10 @@ fn wrong_key_pinned_is_a_bad_signature() {
     expect_boot_failure(
         "wrongpin",
         &champion_vessel(1),
-        &[&format!("--vessel-pubkey={}", hex(&wrong.verifying_key().to_bytes()))],
+        &[&format!(
+            "--vessel-pubkey={}",
+            hex(&wrong.verifying_key().to_bytes())
+        )],
     );
 }
 

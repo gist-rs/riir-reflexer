@@ -16,9 +16,7 @@ use katgpt_tetris::rulebook::{Genome, play_game};
 use katgpt_tetris::sim::Board;
 use reflexer::engine::Engine;
 use reflexer::lane::{local_play_with_decisions, stats_eq};
-use reflexer_vessel::{
-    self as vessel, ApplyRefusal, PinTable, SUBSTRATE,
-};
+use reflexer_vessel::{self as vessel, ApplyRefusal, PinTable, SUBSTRATE};
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_reflexer")
