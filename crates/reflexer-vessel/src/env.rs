@@ -269,7 +269,10 @@ mod tests {
     fn empty_table_refuses_everything_including_none() {
         let t = EnvPinTable::empty();
         for e in Env::ALL {
-            assert!(matches!(t.pins_for(e), Err(VesselError::EnvUnpinned { .. })));
+            assert!(matches!(
+                t.pins_for(e),
+                Err(VesselError::EnvUnpinned { .. })
+            ));
         }
     }
 
@@ -278,7 +281,10 @@ mod tests {
         let t = EnvPinTable::default().with_pins(Env::Devnet, table(9, &key(7)));
         assert!(t.pins_for(Env::Devnet).is_ok());
         for e in [Env::Localnet, Env::Testnet, Env::Mainnet] {
-            assert!(matches!(t.pins_for(e), Err(VesselError::EnvUnpinned { .. })));
+            assert!(matches!(
+                t.pins_for(e),
+                Err(VesselError::EnvUnpinned { .. })
+            ));
         }
     }
 
@@ -346,7 +352,10 @@ mod tests {
             Env::None,
         )
         .unwrap_err();
-        assert!(matches!(env_err, VesselError::UnknownKey(1)), "got: {env_err:?}");
+        assert!(
+            matches!(env_err, VesselError::UnknownKey(1)),
+            "got: {env_err:?}"
+        );
     }
 
     #[test]
@@ -374,8 +383,12 @@ mod tests {
         std::fs::write(&tmp, &vessel_bytes).expect("write fixture");
         let pins = table(1, &k);
         let stock = crate::open(&tmp, &pins).expect("stock open");
-        let via_env = open_for_env(&tmp, &EnvPinTable::empty().with_pins(Env::None, table(1, &k)), Env::None)
-            .expect("env open");
+        let via_env = open_for_env(
+            &tmp,
+            &EnvPinTable::empty().with_pins(Env::None, table(1, &k)),
+            Env::None,
+        )
+        .expect("env open");
         assert_eq!(stock, via_env);
         let _ = std::fs::remove_file(&tmp);
     }

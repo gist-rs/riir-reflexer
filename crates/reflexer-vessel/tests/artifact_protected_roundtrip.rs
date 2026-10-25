@@ -34,7 +34,11 @@ fn signed_public(k: &SigningKey, key_id: u32, payload: &[u8]) -> Vec<u8> {
 /// bytes identically to raw bytes. The real confidentiality law is age's,
 /// exercised by the skip-loud arm below.
 fn fake_wrap(bytes: &[u8], pad: &[u8; 32]) -> Vec<u8> {
-    bytes.iter().enumerate().map(|(i, b)| b ^ pad[i % pad.len()]).collect()
+    bytes
+        .iter()
+        .enumerate()
+        .map(|(i, b)| b ^ pad[i % pad.len()])
+        .collect()
 }
 
 #[test]
@@ -45,7 +49,10 @@ fn decrypted_bytes_verify_exactly_as_raw_bytes() {
 
     let pad = [0x5Au8; 32];
     let ciphertext = fake_wrap(&raw, &pad);
-    assert_ne!(ciphertext, raw, "the stand-in wrap must transform the bytes");
+    assert_ne!(
+        ciphertext, raw,
+        "the stand-in wrap must transform the bytes"
+    );
     let decrypted = fake_wrap(&ciphertext, &pad);
     assert_eq!(decrypted, raw, "the stand-in round-trip is lossless");
 
@@ -109,7 +116,9 @@ fn age_roundtrip_when_tool_present() {
         return;
     };
     let Ok(age_keygen) = which("age-keygen") else {
-        eprintln!("SKIP loud: age present but age-keygen absent — identity generation is the keygen binary");
+        eprintln!(
+            "SKIP loud: age present but age-keygen absent — identity generation is the keygen binary"
+        );
         return;
     };
 
@@ -124,7 +133,11 @@ fn age_roundtrip_when_tool_present() {
             .spawn()
             .expect("tool spawns");
         if let Some(input) = stdin {
-            cmd.stdin.as_mut().expect("stdin").write_all(input).expect("write stdin");
+            cmd.stdin
+                .as_mut()
+                .expect("stdin")
+                .write_all(input)
+                .expect("write stdin");
         }
         let out = cmd.wait_with_output().expect("tool waits");
         assert!(

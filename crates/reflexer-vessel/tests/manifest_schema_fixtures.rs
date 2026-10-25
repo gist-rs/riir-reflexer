@@ -79,13 +79,22 @@ fn in_vocab(v: &str, vocab: &[&str]) -> bool {
 /// planted violation to FAIL it. One implementation, two directions.
 fn validate_row(row: &ArtifactRow) -> Result<(), String> {
     if !in_vocab(&row.kind, &KINDS) {
-        return Err(format!("row {}: kind {:?} off-vocabulary", row.name, row.kind));
+        return Err(format!(
+            "row {}: kind {:?} off-vocabulary",
+            row.name, row.kind
+        ));
     }
     if !in_vocab(&row.class, &CLASSES) {
-        return Err(format!("row {}: class {:?} off-vocabulary", row.name, row.class));
+        return Err(format!(
+            "row {}: class {:?} off-vocabulary",
+            row.name, row.class
+        ));
     }
     if !in_vocab(&row.env, &ENVS) {
-        return Err(format!("row {}: env {:?} off-vocabulary", row.name, row.env));
+        return Err(format!(
+            "row {}: env {:?} off-vocabulary",
+            row.name, row.env
+        ));
     }
     for h in [&row.blake3_plain, &row.blake3_cipher] {
         if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -107,16 +116,19 @@ fn validate_row(row: &ArtifactRow) -> Result<(), String> {
         ("protected", "keys") => {
             // Wrapped-DEK rows are exempt from dek_scope — REQUIRED ABSENT.
             if row.dek_scope.is_some() {
-                return Err(format!("row {}: keys rows must NOT carry dek_scope", row.name));
+                return Err(format!(
+                    "row {}: keys rows must NOT carry dek_scope",
+                    row.name
+                ));
             }
         }
         ("protected", _) => {
-            let scope = row.dek_scope.as_deref().ok_or_else(|| {
-                format!("row {}: protected rows REQUIRE dek_scope", row.name)
-            })?;
-            let legal = scope == "train"
-                || scope == "serve-shared"
-                || in_vocab(scope, &SERVE_SCOPES);
+            let scope = row
+                .dek_scope
+                .as_deref()
+                .ok_or_else(|| format!("row {}: protected rows REQUIRE dek_scope", row.name))?;
+            let legal =
+                scope == "train" || scope == "serve-shared" || in_vocab(scope, &SERVE_SCOPES);
             if !legal {
                 return Err(format!(
                     "row {}: dek_scope {:?} off-vocabulary (train|serve-<env>|serve-shared)",
@@ -126,13 +138,19 @@ fn validate_row(row: &ArtifactRow) -> Result<(), String> {
         }
         ("public", _) => {
             if row.dek_scope.is_some() {
-                return Err(format!("row {}: public rows must NOT carry dek_scope", row.name));
+                return Err(format!(
+                    "row {}: public rows must NOT carry dek_scope",
+                    row.name
+                ));
             }
         }
         _ => unreachable!("class checked in vocabulary above"),
     }
     if row.remote.is_empty() {
-        return Err(format!("row {}: remote is required (content-addressed)", row.name));
+        return Err(format!(
+            "row {}: remote is required (content-addressed)",
+            row.name
+        ));
     }
     Ok(())
 }
@@ -196,7 +214,9 @@ fn protected_shape_fixture_is_schema_legal() {
     // at least one true protected row and one keys row, so the dek_scope
     // laws below are pinned by presence, not vacuously.
     assert!(
-        m.artifacts.iter().any(|r| r.class == "protected" && r.kind != "keys"),
+        m.artifacts
+            .iter()
+            .any(|r| r.class == "protected" && r.kind != "keys"),
         "fixture must carry a protected non-keys row"
     );
     assert!(
@@ -232,39 +252,66 @@ fn planted_off_vocabulary_values_are_refused() {
 
     let mut bad_kind = base.clone();
     bad_kind.kind = "models".into(); // not in KINDS
-    assert!(validate_row(&bad_kind).is_err(), "off-vocabulary kind must refuse");
+    assert!(
+        validate_row(&bad_kind).is_err(),
+        "off-vocabulary kind must refuse"
+    );
 
     let mut bad_class = base.clone();
     bad_class.class = "confidential".into();
-    assert!(validate_row(&bad_class).is_err(), "off-vocabulary class must refuse");
+    assert!(
+        validate_row(&bad_class).is_err(),
+        "off-vocabulary class must refuse"
+    );
 
     let mut bad_env = base.clone();
     bad_env.env = "staging".into();
-    assert!(validate_row(&bad_env).is_err(), "off-vocabulary env must refuse");
+    assert!(
+        validate_row(&bad_env).is_err(),
+        "off-vocabulary env must refuse"
+    );
 
     let mut bad_scope = base.clone();
     bad_scope.dek_scope = Some("serve-staging".into());
-    assert!(validate_row(&bad_scope).is_err(), "off-vocabulary dek_scope must refuse");
+    assert!(
+        validate_row(&bad_scope).is_err(),
+        "off-vocabulary dek_scope must refuse"
+    );
 
     let mut missing_scope = base.clone();
     missing_scope.dek_scope = None;
-    assert!(validate_row(&missing_scope).is_err(), "protected without dek_scope must refuse");
+    assert!(
+        validate_row(&missing_scope).is_err(),
+        "protected without dek_scope must refuse"
+    );
 
     let mut keys_with_scope = base.clone();
     keys_with_scope.kind = "keys".into();
-    assert!(validate_row(&keys_with_scope).is_err(), "keys row WITH dek_scope must refuse");
+    assert!(
+        validate_row(&keys_with_scope).is_err(),
+        "keys row WITH dek_scope must refuse"
+    );
 
     let mut public_with_scope = base.clone();
     public_with_scope.class = "public".into();
-    assert!(validate_row(&public_with_scope).is_err(), "public row with dek_scope must refuse");
+    assert!(
+        validate_row(&public_with_scope).is_err(),
+        "public row with dek_scope must refuse"
+    );
 
     let mut short_hash = base.clone();
     short_hash.blake3_plain = "abcd".into();
-    assert!(validate_row(&short_hash).is_err(), "non-64-hex hash must refuse");
+    assert!(
+        validate_row(&short_hash).is_err(),
+        "non-64-hex hash must refuse"
+    );
 
     let mut no_remote = base.clone();
     no_remote.remote = vec![];
-    assert!(validate_row(&no_remote).is_err(), "empty remote must refuse");
+    assert!(
+        validate_row(&no_remote).is_err(),
+        "empty remote must refuse"
+    );
 
     let mut cipher_below_plain = base.clone();
     cipher_below_plain.plain_bytes = 2;
@@ -312,15 +359,24 @@ fn planted_source_pin_violations_are_refused() {
 
     let mut short_sha = base.clone();
     short_sha.sha256 = "abcd".into();
-    assert!(validate_source_pin(&short_sha).is_err(), "non-64-hex sha256 must refuse");
+    assert!(
+        validate_source_pin(&short_sha).is_err(),
+        "non-64-hex sha256 must refuse"
+    );
 
     let mut short_blake3 = base.clone();
     short_blake3.blake3 = "abcd".into();
-    assert!(validate_source_pin(&short_blake3).is_err(), "non-64-hex blake3 must refuse");
+    assert!(
+        validate_source_pin(&short_blake3).is_err(),
+        "non-64-hex blake3 must refuse"
+    );
 
     let mut zero_bytes = base.clone();
     zero_bytes.bytes = 0;
-    assert!(validate_source_pin(&zero_bytes).is_err(), "zero size must refuse");
+    assert!(
+        validate_source_pin(&zero_bytes).is_err(),
+        "zero size must refuse"
+    );
 
     let mut originless = base.clone();
     originless.source_url = None;
@@ -363,7 +419,13 @@ fn unknown_fields_are_refused_by_the_parser() {
         "remote",
     ];
     const SOURCE_PIN_FIELDS: [&str; 7] = [
-        "name", "sha256", "blake3", "bytes", "source_url", "provenance", "note",
+        "name",
+        "sha256",
+        "blake3",
+        "bytes",
+        "source_url",
+        "provenance",
+        "note",
     ];
     #[derive(Deserialize)]
     struct LooseManifest {
@@ -407,7 +469,10 @@ fn unknown_fields_are_refused_by_the_parser() {
             .keys()
             .filter(|k| !SOURCE_PIN_FIELDS.contains(&k.as_str()))
             .collect();
-        assert!(unknown.is_empty(), "source_pins.toml: unknown fields {unknown:?}");
+        assert!(
+            unknown.is_empty(),
+            "source_pins.toml: unknown fields {unknown:?}"
+        );
     }
     let drifted_pin = r#"
         [[source_pin]]
