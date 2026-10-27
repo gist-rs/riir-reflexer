@@ -1,11 +1,13 @@
 # Workspace-wide pin (the every-workspace-pins directive); matches the
 # katgpt-rs sibling so the path dep and this crate build on one toolchain —
 # and it is load-bearing, not stylistic: katgpt-rs crates declare a
-# rust-version floor of 1.98.1, so a box whose default channel is older
-# fails a plain clone-and-`cargo check` with "requires rustc 1.98.1".
+# rust-version floor (now 1.99.0 per katgpt-rs issue 963's anchor bump; the
+# katgpt-tetris member this crate deps inherits it), so a box whose pinned
+# channel is older fails a plain clone-and-`cargo check` with "requires
+# rustc 1.99.0". Follows the anchor (downstream follows, never the reverse).
 # components must be declared: without them rustup installs the pinned
 # toolchain bare and every CI clippy lane dies with "'cargo-clippy' is
 # not installed" (the riir-infer sibling's pin is the working shape).
 [toolchain]
-channel = "1.98.1"
+channel = "1.99.0"
 components = ["clippy", "rustfmt"]
