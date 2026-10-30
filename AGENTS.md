@@ -79,6 +79,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test                                   # incl. G1 (wire vs in-process oracle)
 cargo build --release --bin reflexer --example measure
 cargo run --release --example measure        # the G2 budget gate (box-state preflight)
+./scripts/deny_gate.sh                       # cargo-deny advisories gate (riir-refine plan 298 T2.4 fan-out): vulnerable CRATES at lockfile level, advisories-only scope — the deny.toml ignore list is a membership pin (reason + tracking ref per row); a missing cargo-deny is a LOUD SKIP; standalone (CI wiring is plan-298 T2.7, owner-gated)
 ```
 
 Path deps expect `../katgpt-rs` beside this repo; use an isolated `CARGO_TARGET_DIR` when a
