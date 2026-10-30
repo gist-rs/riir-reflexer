@@ -8,7 +8,7 @@ scores every board a move can lead to. Frozen genome: shipped as constant
 bytes — never retrained, never blended.]
 
 Shown on the education page at
-[reflex.gist.rs/resources/#reflexer](https://reflex.gist.rs/resources/#reflexer);
+[reflex.riir.ai/resources/#reflexer](https://reflex.riir.ai/resources/#reflexer);
 this doc is the source of truth, the site carries a byte-identical mirror.
 
 ## What Reflexer is
@@ -71,7 +71,7 @@ the site's bench lanes and the arena's recorded boards.
 
 - GitHub: [gist-rs/riir-reflexer](https://github.com/gist-rs/riir-reflexer)
 - The arena's rulebook boards:
-  [reflex.gist.rs/arena](https://reflex.gist.rs/arena/)
+  [reflex.riir.ai/arena](https://reflex.riir.ai/arena/)
 - The engine's own end-to-end flow:
   [decision_flow.md](https://github.com/gist-rs/riir-reflexer/blob/develop/.docs/03_decision_flow/decision_flow.md)
 

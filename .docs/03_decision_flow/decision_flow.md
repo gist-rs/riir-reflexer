@@ -156,7 +156,7 @@ flowchart TB
 The SVG is rendered from the COMPACT source above (the block carrying the
 `%% file:` / `%% aria:` headers) with the fleet renderer —
 `../reflex-site/scripts/render_flows.py` (the mermaid path via mermaid.ink,
-the gist.rs web-family palette, the Reflex-family accent `#ff8a3d`: this
+the riir.ai web-family palette, the Reflex-family accent `#ff8a3d`: this
 engine is the arena's *Reflex · rulebook* lane). This figure is not among
 the renderer's `SOURCES` (the repo's mirrored figure is
 `06_resources/resources.md`'s relation flow), so re-render locally and

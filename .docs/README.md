@@ -23,7 +23,7 @@ index in every folder, and this file as the top-level index.
 | [`03_decision_flow/`](03_decision_flow/) | The end-to-end engine flow narrative + its SVG diagram (request line in → one search → question mapping → envelope out) |
 | [`04_vessel_format/`](04_vessel_format/) | The vessel format crate: format v1 anatomy, the two-class law, key rotation, monotonic apply, hardening, the public writer |
 | [`05_measurement_lane/`](05_measurement_lane/) | The measurement lane + trajectory submission: artifact pins, the box-state law, the G1/G2 gates, the signed manifest |
-| [`06_resources/`](06_resources/) | The public education write-up (the Reflex ↔ Reflexer relation) + the gfflow relation figure — mirrored to reflex.gist.rs `/resources/#reflexer` |
+| [`06_resources/`](06_resources/) | The public education write-up (the Reflex ↔ Reflexer relation) + the gfflow relation figure — mirrored to reflex.riir.ai `/resources/#reflexer` |
 
 ## Figures
 
