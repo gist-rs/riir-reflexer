@@ -29,7 +29,7 @@ index in every folder, and this file as the top-level index.
 
 `03_decision_flow/decision_flow.svg` is rendered from the `%% file:`-headed
 mermaid block in `03_decision_flow/decision_flow.md` with the fleet renderer
-(`../reflex-site/scripts/render_flows.py` — the gist.rs web-family palette,
+(`../reflex-site/scripts/render_flows.py` — the riir.ai web-family palette,
 the Reflex-family accent: this engine is the arena's *Reflex · rulebook*
 lane). It carries **no site mirror** and is NOT in the renderer's `SOURCES`;
 re-render locally (the doc's "Re-rendering" section has the exact procedure)
